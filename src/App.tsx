@@ -28,7 +28,7 @@ export default function App() {
   // ^-- This is a "lazy initializer" for useState --^
 
   const [appState, setAppState] = useState("manage"); // 'manage', 'photoQuiz'
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
