@@ -16,7 +16,7 @@ import {
 export default function App() {
   // App State
   // v-- MODIFIED: Read from localStorage on initial load --v
-  const [birds, setBirds] = useState(() => {
+  const [birds, setBirds] = useState<any[]>(() => {
     try {
       const savedBirds = localStorage.getItem("birdQuizList");
       return savedBirds ? JSON.parse(savedBirds) : [];
