@@ -39,7 +39,7 @@ export default function App() {
   // Quiz State
   const [quizQuestion, setQuizQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   // --- NEW: Save to localStorage whenever 'birds' changes ---
   useEffect(() => {
