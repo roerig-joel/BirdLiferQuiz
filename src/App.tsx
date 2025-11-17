@@ -168,7 +168,7 @@ export default function App() {
     );
   };
 
-  const handleDeleteBird = (birdId) => {
+  const handleDeleteBird = (birdId: any) => {
     // ... (rest of the function, no changes)
     setBirds((prevBirds) => prevBirds.filter((b) => b.id !== birdId));
   };
