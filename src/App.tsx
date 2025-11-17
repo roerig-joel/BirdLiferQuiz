@@ -37,7 +37,7 @@ export default function App() {
   const [isAdding, setIsAdding] = useState(null);
 
   // Quiz State
-  const [quizQuestion, setQuizQuestion] = useState(null);
+  const [quizQuestion, setQuizQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [feedback, setFeedback] = useState(null);
 
