@@ -115,7 +115,11 @@ export default function App() {
     try {
       const results = await Promise.allSettled(searchPromises);
       const successfulResults = results
-        .filter((res) => res.status === "fulfilled" && res.value)
+        .filter(
+          (res): res is PromiseFulfilledResult<any> =>
+            res.status === "fulfilled"
+        )
+        .filter((res) => res.value)
         .map((res) => res.value);
 
       setSearchResults(successfulResults);
