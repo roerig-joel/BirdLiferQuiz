@@ -442,7 +442,7 @@ export default function App() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {options.map((option) => {
+          {options.map((option: string) => {
             const isCorrect = option === bird.name;
             const isSelected = option === selectedAnswer;
             let buttonClass =
