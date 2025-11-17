@@ -270,7 +270,7 @@ export default function App() {
   const renderManageBirds = () => (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">
-        Manage Your Lifer List
+        Manage your species list
       </h2>
 
       {/* --- Search Section --- */}
@@ -278,9 +278,9 @@ export default function App() {
         onSubmit={handleSearch}
         className="mb-6 p-4 bg-gray-50 rounded-lg shadow"
       >
-        <h3 className="text-lg font-semibold mb-3">Add New Birds</h3>
+        <h3 className="text-lg font-semibold mb-3">Add new species</h3>
         <p className="text-sm text-gray-600 mb-3">
-          Paste your list of bird names below, one name per line.
+          Paste your list of species below, one name per line.
         </p>
         <div className="flex flex-col space-y-3">
           <textarea
@@ -302,7 +302,7 @@ export default function App() {
             )}
             <span className="ml-2">
               Search for {searchQuery.split("\n").filter(Boolean).length || 0}{" "}
-              birds
+              species
             </span>
           </button>
         </div>
@@ -316,7 +316,7 @@ export default function App() {
             Search Results ({searchResults.length})
           </h3>
           <p className="text-sm text-gray-600 mb-3">
-            Click '+' to add birds to your quiz list.
+            Click '+' to add species to your quiz list.
           </p>
           <div className="space-y-3">
             {searchResults.map((result) => (
@@ -368,7 +368,7 @@ export default function App() {
         </h3>
         {birds.length === 0 && !isSearching && (
           <p className="text-gray-500">
-            Your quiz list is empty. Search for birds above to get started!
+            Your quiz list is empty. Search for species above to get started!
           </p>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -508,7 +508,7 @@ export default function App() {
           <div className="flex items-center space-x-2 mb-2 sm:mb-0">
             <Bird className="h-8 w-8 text-blue-600" />
             <h1 className="text-xl md:text-2xl font-bold text-gray-800">
-              Lifer Quiz Builder
+              Nature Quiz Builder
             </h1>
           </div>
           <div className="flex space-x-2">
