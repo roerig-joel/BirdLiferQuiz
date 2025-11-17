@@ -141,7 +141,7 @@ export default function App() {
     setError(null);
 
     // Check for duplicates
-    if (birds.some((b) => b.id === iNatResult.id)) {
+    if (birds.some((b: any) => b.id === iNatResult.id)) {
       setError(
         `${
           iNatResult.preferred_common_name || iNatResult.name
