@@ -48,7 +48,7 @@ export default function App() {
   // --- END NEW ---
 
   // --- Utility Functions ---
-  const shuffleArray = (array) => {
+  const shuffleArray = (array: any[]) => {
     // ... (rest of the function, no changes)
     let currentIndex = array.length,
       randomIndex;
