@@ -136,7 +136,7 @@ export default function App() {
     setIsSearching(false);
   };
 
-  const handleAddBird = (iNatResult) => {
+  const handleAddBird = (iNatResult: any) => {
     // ... (rest of the function, no changes)
     setError(null);
 
