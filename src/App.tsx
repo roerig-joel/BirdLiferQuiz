@@ -94,7 +94,7 @@ export default function App() {
         const data = await response.json();
         // Find the best, most relevant result
         const topHit = data.results.find(
-          (r) =>
+          (r: any) =>
             r.rank === "species" &&
             r.default_photo &&
             (r.name.toLowerCase() === name.trim().toLowerCase() ||
@@ -104,7 +104,7 @@ export default function App() {
         // If no exact match, take the first species with a photo
         return (
           topHit ||
-          data.results.find((r) => r.rank === "species" && r.default_photo)
+          data.results.find((r: any) => r.rank === "species" && r.default_photo)
         );
       } catch (err) {
         console.error(`Failed to search for ${name}:`, err);
