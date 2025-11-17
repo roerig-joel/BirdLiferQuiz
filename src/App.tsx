@@ -63,7 +63,7 @@ export default function App() {
     return array;
   };
 
-  const getLastName = (name) => {
+  const getLastName = (name: string) => {
     // ... (rest of the function, no changes)
     if (!name) return "";
     const parts = name.split(" ");
