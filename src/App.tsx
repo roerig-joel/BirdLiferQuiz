@@ -71,7 +71,7 @@ export default function App() {
   };
 
   // --- API Functions ---
-  const handleSearch = async (e) => {
+  const handleSearch = async (e: React.FormEvent) => {
     // ... (rest of the function, no changes)
     e.preventDefault();
     const birdNames = searchQuery
