@@ -246,7 +246,7 @@ export default function App() {
     generatePhotoQuizQuestion();
   };
 
-  const handlePhotoAnswerSelect = (optionName) => {
+  const handlePhotoAnswerSelect = (optionName: string) => {
     // ... (rest of the function, no changes)
     if (feedback) return;
     setSelectedAnswer(optionName);
