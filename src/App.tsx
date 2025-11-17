@@ -288,7 +288,7 @@ export default function App() {
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Sokoke Pipit&#10;Amani Sunbird&#10;Fischer's Turaco..."
             className="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 flex-1 font-mono text-sm"
-            rows="10"
+            rows={10}
           />
           <button
             type="submit"
