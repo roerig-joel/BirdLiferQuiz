@@ -351,190 +351,161 @@ const handleDeleteList = (locationName: string) => {
     </div>
   );
 
-  const renderManageBirds = () => (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">
-        Manage your species list
-      </h2>
-{/* --- Saved Locations Manager --- */}
-      <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg shadow">
-        <h3 className="text-xl font-bold text-yellow-800 mb-4 flex items-center">
-          <Brain className="h-5 w-5 mr-2" />
-          Location List Manager ({savedLocations.length})
-        </h3>
+const renderManageBirds = () => (
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">Manage Your Lifer Lists</h2>
+
+      <div className="flex flex-col md:flex-row gap-6">
         
-        {/* Save Current List Input */}
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          // Find the input field by its name/id in the form, or use a state variable if defined elsewhere.
-          // Since we don't have a specific state for this input, we'll read it directly from the form.
-          const input = e.currentTarget.elements.namedItem("locationName") as HTMLInputElement;
-          if (input) handleSaveList(input.value);
-        }} className="flex gap-2 mb-4">
-          <input
-            type="text"
-            id="locationName"
-            name="locationName"
-            placeholder="e.g., Arabuko Sokoke"
-            required
-            className="p-2 border rounded-md flex-1 focus:ring-2 focus:ring-yellow-500 min-w-0"
-          />
-          <button
-            type="submit"
-            disabled={birds.length === 0}
-            className="p-2 px-4 bg-yellow-600 text-white rounded-md font-semibold hover:bg-yellow-700 transition-colors disabled:opacity-50 flex-shrink-0"
-          >
-            <Plus className="h-5 w-5 mr-1" />
-            Save Current List ({birds.length})
-          </button>
-        </form>
-
-        {/* Display Saved Lists */}
-        {savedLocations.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <p className="text-sm font-semibold text-yellow-700">Saved Locations:</p>
-            {savedLocations.map((loc) => (
-              <div key={loc.name} className="flex items-center justify-between p-2 bg-white rounded-md border shadow-sm">
-                <p className="font-medium text-gray-800 truncate">
-                  {loc.name} <span className="text-sm text-gray-500">({loc.birds.length} birds)</span>
-                </p>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleLoadList(loc.name)}
-                    className="p-1 px-3 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
-                  >
-                    Load
-                  </button>
-                  <button
-                    onClick={() => handleDeleteList(loc.name)}
-                    className="p-1 text-red-500 hover:text-white hover:bg-red-500 rounded-full transition-colors"
-                    title={`Delete ${loc.name}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {savedLocations.length === 0 && (
-          <p className="text-gray-500 text-sm">No locations saved yet. Save your current bird list above!</p>
-        )}
-      </div>
-      {/* --- END Saved Locations Manager --- */}
-      {/* --- Search Section --- */}
-      <form
-        onSubmit={handleSearch}
-        className="mb-6 p-4 bg-gray-50 rounded-lg shadow"
-      >
-        <h3 className="text-lg font-semibold mb-3">Add new species</h3>
-        <p className="text-sm text-gray-600 mb-3">
-          Paste your list of species below, one name per line.
-        </p>
-        <div className="flex flex-col space-y-3">
-          <textarea
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Sokoke Pipit&#10;Amani Sunbird&#10;Fischer's Turaco..."
-            className="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 flex-1 font-mono text-sm"
-            rows={10}
-          />
-          <button
-            type="submit"
-            disabled={isSearching}
-            className="flex items-center justify-center p-2 px-4 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            {isSearching ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Search className="h-5 w-5" />
-            )}
-            <span className="ml-2">
-              Search for {searchQuery.split("\n").filter(Boolean).length || 0}{" "}
-              species
-            </span>
-          </button>
-        </div>
-      </form>
-
-      {/* --- Search Results Section --- */}
-      {isSearching && renderLoading("Searching iNaturalist for your list...")}
-      {searchResults.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold mb-3">
-            Search Results ({searchResults.length})
-          </h3>
-          <p className="text-sm text-gray-600 mb-3">
-            Click '+' to add species to your quiz list.
-          </p>
-          <div className="space-y-3">
-            {searchResults.map((result) => (
-              <div
-                key={result.id}
-                className="bg-white p-3 rounded-lg shadow-md flex items-center space-x-3"
+        {/* === COLUMN 1: Search Section (Wider Column) === */}
+        <div className="w-full md:w-2/3">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Add New Birds to Current List</h3>
+          
+          <form onSubmit={handleSearch} className="mb-6 p-4 bg-gray-50 rounded-lg shadow-md">
+            <p className="text-sm text-gray-600 mb-3">Paste bird names below, one per line. They will be added to your current list.</p>
+            <div className="flex flex-col space-y-3">
+              <textarea
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Sokoke Pipit&#10;Amani Sunbird&#10;Fischer's Turaco..."
+                className="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 flex-1 font-mono text-sm"
+                rows={10}
+              />
+              <button
+                type="submit"
+                disabled={isSearching}
+                className="flex items-center justify-center p-2 px-4 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
-                <img
-                  src={result.default_photo?.medium_url}
-                  alt={result.preferred_common_name || result.name}
-                  referrerPolicy="no-referrer"
-                  className="h-16 w-16 rounded-md object-cover bg-gray-200 flex-shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-800 truncate">
-                    {result.preferred_common_name || result.name}
-                  </p>
-                  <p className="text-sm text-gray-500 italic truncate">
-                    {result.name}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleAddBird(result)}
-                  disabled={
-                    isAdding === result.id ||
-                    birds.some((b) => b.id === result.id)
-                  }
-                  className="p-2 bg-green-500 text-white rounded-md font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 flex-shrink-0"
-                  title={`Add ${result.preferred_common_name || result.name}`}
-                >
-                  {isAdding === result.id ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : birds.some((b) => b.id === result.id) ? (
-                    <CheckCircle className="h-5 w-5" />
-                  ) : (
-                    <Plus className="h-5 w-5" />
-                  )}
-                </button>
+                {isSearching ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
+                <span className="ml-2">Search for {searchQuery.split('\n').filter(Boolean).length || 0} birds</span>
+              </button>
+            </div>
+          </form>
+
+          {/* Search Results Section */}
+          {isSearching && (
+            renderLoading("Searching iNaturalist for your list...")
+          )}
+          {searchResults.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold mb-3">Search Results ({searchResults.length})</h3>
+              <p className="text-sm text-gray-600 mb-3">Click '+' to add birds to your quiz list.</p>
+              <div className="space-y-3">
+                {searchResults.map((result) => (
+                  <div key={result.id} className="bg-white p-3 rounded-lg shadow-md flex items-center space-x-3">
+                    <img
+                      src={result.default_photo?.medium_url}
+                      alt={result.preferred_common_name || result.name}
+                      referrerPolicy="no-referrer"
+                      className="h-16 w-16 rounded-md object-cover bg-gray-200 flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-800 truncate">{result.preferred_common_name || result.name}</p>
+                      <p className="text-sm text-gray-500 italic truncate">{result.name}</p>
+                    </div>
+                    <button
+                      onClick={() => handleAddBird(result)}
+                      disabled={isAdding === result.id || birds.some(b => b.id === result.id)}
+                      className="p-2 bg-green-500 text-white rounded-md font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 flex-shrink-0"
+                      title={`Add ${result.preferred_common_name || result.name}`}
+                    >
+                      {isAdding === result.id ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        birds.some(b => b.id === result.id) ? <CheckCircle className="h-5 w-5" /> : <Plus className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          )}
+        </div>
+
+        {/* === COLUMN 2: Location Manager (Narrower Column) === */}
+        <div className="w-full md:w-1/3">
+          {/* --- Saved Locations Manager --- */}
+          <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg shadow-md sticky top-0">
+            <h3 className="text-xl font-bold text-yellow-800 mb-4 flex items-center">
+              <Brain className="h-5 w-5 mr-2" />
+              Location List Manager ({savedLocations.length})
+            </h3>
+            
+            {/* Save Current List Input */}
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const input = e.currentTarget.elements.namedItem("locationName") as HTMLInputElement;
+              if (input) handleSaveList(input.value);
+            }} className="flex flex-col gap-2 mb-4">
+              <input
+                type="text"
+                id="locationName"
+                name="locationName"
+                placeholder="e.g., Arabuko Sokoke"
+                required
+                className="p-2 border rounded-md flex-1 focus:ring-2 focus:ring-yellow-500 min-w-0"
+              />
+              <button
+                type="submit"
+                disabled={birds.length === 0}
+                className="p-2 px-4 bg-yellow-600 text-white rounded-md font-semibold hover:bg-yellow-700 transition-colors disabled:opacity-50 flex-shrink-0"
+              >
+                <Plus className="h-5 w-5 mr-1" />
+                Save Current List ({birds.length})
+              </button>
+            </form>
+
+            {/* Display Saved Lists */}
+            {savedLocations.length > 0 && (
+              <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
+                <p className="text-sm font-semibold text-yellow-700 sticky top-0 bg-yellow-50 z-10 p-1 -m-1 border-b border-yellow-200">Saved Locations:</p>
+                {savedLocations.map((loc) => (
+                  <div key={loc.name} className="flex items-center justify-between p-2 bg-white rounded-md border shadow-sm">
+                    <p className="font-medium text-gray-800 truncate">
+                      {loc.name} <span className="text-sm text-gray-500">({loc.birds.length} birds)</span>
+                    </p>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleLoadList(loc.name)}
+                        className="p-1 px-3 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                      >
+                        Load
+                      </button>
+                      <button
+                        onClick={() => handleDeleteList(loc.name)}
+                        className="p-1 text-red-500 hover:text-white hover:bg-red-500 rounded-full transition-colors"
+                        title={`Delete ${loc.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {savedLocations.length === 0 && (
+              <p className="text-gray-500 text-sm">No locations saved yet. Save your current bird list above!</p>
+            )}
           </div>
         </div>
-      )}
-
-      {/* --- Current List Section --- */}
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold mb-3">
-          Your Quiz List ({birds.length})
-        </h3>
+      </div>
+      
+      {/* --- Current List Section (Remains Below the Two Columns) --- */}
+      <div className="mt-6">
+        <h3 className="text-xl font-semibold mb-3">Your Current List ({birds.length})</h3>
         {birds.length === 0 && !isSearching && (
-          <p className="text-gray-500">
-            Your quiz list is empty. Search for species above to get started!
-          </p>
+          <p className="text-gray-500">Your quiz list is empty. Add birds from the Search section above or load a saved list.</p>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {birds.map((bird) => (
-            <div
-              key={bird.id}
-              className="bg-white p-3 rounded-lg shadow-md flex items-center space-x-3"
-            >
+            <div key={bird.id} className="bg-white p-3 rounded-lg shadow-md flex items-center space-x-3">
               <img
                 src={bird.default_photo?.medium_url}
                 alt={bird.preferred_common_name || bird.name}
                 referrerPolicy="no-referrer"
                 className="h-16 w-16 rounded-md object-cover bg-gray-200"
               />
-              <p className="flex-1 font-medium text-gray-700 truncate">
-                {bird.preferred_common_name || bird.name}
-              </p>
+              <p className="flex-1 font-medium text-gray-700 truncate">{bird.preferred_common_name || bird.name}</p>
               <button
                 onClick={() => handleDeleteBird(bird.id)}
                 className="p-2 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors flex-shrink-0"
@@ -546,9 +517,9 @@ const handleDeleteList = (locationName: string) => {
           ))}
         </div>
       </div>
-
-      {/* --- Quiz Buttons --- */}
-      <div className="grid grid-cols-1">
+      
+      {/* --- Quiz Buttons (Remains Below the Two Columns) --- */}
+      <div className="grid grid-cols-1 mt-6">
         <button
           onClick={startPhotoQuiz}
           disabled={birds.length < 2}
