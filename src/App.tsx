@@ -1,61 +1,69 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  Bird,
-  Plus,
-  Trash2,
-  Brain,
-  X,
-  Loader2,
-  List,
-  Search,
-  CheckCircle,
-  Ban,
-} from "lucide-react";
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  Bird, Plus, Trash2, Brain, Loader2, List, Search, CheckCircle, Ban 
+} from 'lucide-react';
 
-// --- App Component ---
 export default function App() {
-  // App State
-  // v-- MODIFIED: Read from localStorage on initial load --v
+  // --- App State ---
   const [birds, setBirds] = useState<any[]>(() => {
     try {
-      const savedBirds = localStorage.getItem("birdQuizList");
+      const savedBirds = localStorage.getItem('birdQuizList');
       return savedBirds ? JSON.parse(savedBirds) : [];
     } catch (e) {
       console.error("Failed to parse birds from localStorage", e);
       return [];
     }
-  }); // <-- MODIFIED
-  // ^-- This is a "lazy initializer" for useState --^
-
-  const [appState, setAppState] = useState("manage"); // 'manage', 'photoQuiz'
+  });
+  
+  const [appState, setAppState] = useState('manage'); // 'manage', 'photoQuiz'
   const [error, setError] = useState<string | null>(null);
 
-  // Search State
-  const [searchQuery, setSearchQuery] = useState("");
+  // --- Saved Locations State ---
+  const [savedLocations, setSavedLocations] = useState<{ name: string; birds: any[] }[]>(() => {
+    try {
+      const saved = localStorage.getItem("birdQuizLocations");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error("Failed to parse locations from localStorage", e);
+    }
+    return [];
+  });
+
+  // --- Search State ---
+  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isAdding, setIsAdding] = useState(null);
+  const [isAdding, setIsAdding] = useState<number | null>(null);
 
-  // Quiz State
+  // --- Quiz State ---
   const [quizQuestion, setQuizQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  // Random Bird Widget State
-const [randomBird, setRandomBird] = useState<any>(null);
+  
+  // --- Random Bird Widget State ---
+  const [randomBird, setRandomBird] = useState<any>(null);
 
-// Fetch a random bird on app load
+  // --- EFFECTS ---
+
+  // 1. Save 'birds' list changes
+  useEffect(() => {
+    localStorage.setItem('birdQuizList', JSON.stringify(birds));
+  }, [birds]);
+
+  // 2. Save 'savedLocations' changes
+  useEffect(() => {
+    localStorage.setItem("birdQuizLocations", JSON.stringify(savedLocations));
+  }, [savedLocations]);
+
+  // 3. Fetch Random Bird (Strictly Birds)
   useEffect(() => {
     const fetchRandomBird = async () => {
       try {
         // taxon_id=3 is strictly Class Aves (Birds)
-        // order_by=observations_count ensures we get popular birds with good photos
-        // We pick a random page from the top 1000 most observed birds
         const randomPage = Math.floor(Math.random() * 1000) + 1;
-        
         const response = await fetch(
           `https://api.inaturalist.org/v1/taxa?taxon_id=3&rank=species&per_page=1&page=${randomPage}&photos=true&order_by=observations_count`
         );
-        
         const data = await response.json();
         if (data.results && data.results.length > 0) {
           setRandomBird(data.results[0]);
@@ -66,127 +74,29 @@ const [randomBird, setRandomBird] = useState<any>(null);
     };
     fetchRandomBird();
   }, []);
-// --- Saved Locations State & Logic ---
 
-/*
- * FEATURE: MULTI-LIST MANAGEMENT
- * GOAL: Create a robust system for saving, loading, and managing multiple named bird lists.
- * * 1. Define new state: `savedLocations` initialized from localStorage (key: 'birdQuizLocations').
- * The state structure should be an array of objects: { name: string, birds: any[] }.
- * 2. Implement persistence: Use a useEffect hook to save `savedLocations` to localStorage anytime it changes.
- * 3. Implement a function `handleSaveList(locationName: string)` that:
- * a) Checks if the name already exists.
- * b) If current 'birds' list is empty, display an error.
- * c) Saves the current 'birds' list into a new location object in `savedLocations`.
- * d) Clears the current 'birds' list and the 'searchQuery'.
- * 4. Implement a function `handleLoadList(locationName: string)` that:
- * a) Finds the list by name in `savedLocations`.
- * b) Sets the current `birds` state to the selected list's birds.
- * 5. Implement a function `handleDeleteList(locationName: string)` to remove a list from `savedLocations`.
- */
-
-// Copilot: Begin generating the state and functions below:
-// --- Code generated manually to bypass Copilot bug ---
-const [savedLocations, setSavedLocations] = useState<{ name: string; birds: any[] }[]>(() => {
-  try {
-    const saved = localStorage.getItem("birdQuizLocations");
-    if (saved) return JSON.parse(saved);
-  } catch (e) {
-    console.error("Failed to parse locations from localStorage", e);
-  }
-  return [];
-});
-
-// NEW: useEffect to save the master list of locations
-useEffect(() => {
-  localStorage.setItem("birdQuizLocations", JSON.stringify(savedLocations));
-}, [savedLocations]);
-
-
-// OLD: Original useEffect to save the current 'birds' list
-useEffect(() => {
-  localStorage.setItem("birdQuizList", JSON.stringify(birds));
-}, [birds]);
-
-
-const handleSaveList = (locationName: string) => {
-  const trimmedName = locationName.trim();
-  if (!trimmedName) {
-    setError("Location name cannot be empty.");
-    return;
-  }
-  if (birds.length === 0) {
-    setError("Cannot save an empty list. Please add birds first.");
-    return;
-  }
-  if (savedLocations.some(loc => loc.name.toLowerCase() === trimmedName.toLowerCase())) {
-    setError(`A location named "${trimmedName}" already exists.`);
-    return;
-  }
-
-  // Create new location object
-  const newLocation = { name: trimmedName, birds: [...birds] };
-  setSavedLocations(prev => [...prev, newLocation].sort((a, b) => a.name.localeCompare(b.name)));
-  
-  // Clears the current 'birds' list and the 'searchQuery'.
-  setBirds([]);
-  setSearchQuery('');
-  setError(`List "${trimmedName}" saved successfully! Your current list is now empty.`);
-};
-
-const handleLoadList = (locationName: string) => {
-  const location = savedLocations.find(loc => loc.name === locationName);
-  if (location) {
-    setBirds([...location.birds]);
-    setAppState('manage');
-    setError(`List "${locationName}" loaded. (${location.birds.length} birds)`);
-  }
-};
-
-const handleDeleteList = (locationName: string) => {
-  if (window.confirm(`Are you sure you want to delete the list for "${locationName}"?`)) {
-    setSavedLocations(prev => prev.filter(loc => loc.name !== locationName));
-    setError(`List "${locationName}" deleted.`);
-  }
-};
-// --- END manually generated code ---
-  // --- Utility Functions ---
-  // --- NEW: Save to localStorage whenever 'birds' changes ---
-  useEffect(() => {
-    localStorage.setItem("birdQuizList", JSON.stringify(birds));
-  }, [birds]);
-  // --- END NEW ---
-
-  // --- Utility Functions ---
+  // --- UTILITY FUNCTIONS ---
   const shuffleArray = (array: any[]) => {
-    // ... (rest of the function, no changes)
-    let currentIndex = array.length,
-      randomIndex;
+    let currentIndex = array.length, randomIndex;
     while (currentIndex !== 0) {
       randomIndex = Math.floor(Math.random() * currentIndex);
       currentIndex--;
-      [array[currentIndex], array[randomIndex]] = [
-        array[randomIndex],
-        array[currentIndex],
-      ];
+      [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
     }
     return array;
   };
-
+   
   const getLastName = (name: string) => {
-    // ... (rest of the function, no changes)
-    if (!name) return "";
-    const parts = name.split(" ");
+    if (!name) return '';
+    const parts = name.split(' ');
     return parts[parts.length - 1];
   };
 
-  // --- API Functions ---
+  // --- API & LIST FUNCTIONS ---
+  
   const handleSearch = async (e: React.FormEvent) => {
-    // ... (rest of the function, no changes)
     e.preventDefault();
-    const birdNames = searchQuery
-      .split("\n")
-      .filter((name) => name.trim() !== "");
+    const birdNames = searchQuery.split('\n').filter(name => name.trim() !== '');
     if (birdNames.length === 0) return;
 
     setIsSearching(true);
@@ -195,198 +105,196 @@ const handleDeleteList = (locationName: string) => {
 
     const searchPromises = birdNames.map(async (name) => {
       try {
-        const response = await fetch(
-          `https://api.inaturalist.org/v1/taxa/autocomplete?q=${encodeURIComponent(name.trim())}&taxon_id=3`);
-          )}`
-        );
+        // taxon_id=3 forces search to only look for BIRDS
+        const response = await fetch(`https://api.inaturalist.org/v1/taxa/autocomplete?q=${encodeURIComponent(name.trim())}&taxon_id=3`);
         if (!response.ok) throw new Error(`API failed for ${name}`);
         const data = await response.json();
-        // Find the best, most relevant result
+        
         const topHit = data.results.find(
-          (r: any) =>
-            r.rank === "species" &&
-            r.default_photo &&
-            (r.name.toLowerCase() === name.trim().toLowerCase() ||
-              r.preferred_common_name?.toLowerCase() ===
-                name.trim().toLowerCase())
+          (r: any) => r.rank === 'species' && 
+          r.default_photo &&
+          (r.name.toLowerCase() === name.trim().toLowerCase() || 
+           r.preferred_common_name?.toLowerCase() === name.trim().toLowerCase())
         );
-        // If no exact match, take the first species with a photo
-        return (
-          topHit ||
-          data.results.find((r: any) => r.rank === "species" && r.default_photo)
-        );
+        return topHit || data.results.find((r: any) => r.rank === 'species' && r.default_photo);
       } catch (err) {
         console.error(`Failed to search for ${name}:`, err);
-        return null; // Return null on failure for this specific bird
+        return null;
       }
     });
 
     try {
       const results = await Promise.allSettled(searchPromises);
       const successfulResults = results
-        .filter(
-          (res): res is PromiseFulfilledResult<any> =>
-            res.status === "fulfilled"
-        )
-        .filter((res) => res.value)
-        .map((res) => res.value);
-
+        .filter((res): res is PromiseFulfilledResult<any> => res.status === 'fulfilled')
+        .filter(res => res.value)
+        .map(res => res.value);
+        
       setSearchResults(successfulResults);
       if (successfulResults.length === 0) {
-        setError(
-          "No valid bird species found. Check your spelling or try different names."
-        );
+        setError("No valid bird species found. Check your spelling or try different names.");
       }
     } catch (batchError) {
       console.error("Batch search error:", batchError);
       setError("An error occurred during the search. Please try again.");
     }
-
     setIsSearching(false);
   };
 
   const handleAddBird = (iNatResult: any) => {
-    // ... (rest of the function, no changes)
     setError(null);
-
-    // Check for duplicates
     if (birds.some((b: any) => b.id === iNatResult.id)) {
-      setError(
-        `${
-          iNatResult.preferred_common_name || iNatResult.name
-        } is already in your list.`
-      );
+      setError(`${iNatResult.preferred_common_name || iNatResult.name} is already in your list.`);
       return;
     }
-
-    // Add to local state
-    setBirds((prevBirds) => {
+    setBirds(prevBirds => {
       const newList = [...prevBirds, iNatResult];
-      // Sort alphabetically
-      newList.sort((a, b) =>
-        (a.preferred_common_name || a.name).localeCompare(
-          b.preferred_common_name || b.name
-        )
-      );
+      newList.sort((a, b) => (a.preferred_common_name || a.name).localeCompare(b.preferred_common_name || b.name));
       return newList;
     });
-
-    // Remove from search results
-    setSearchResults((prevResults) =>
-      prevResults.filter((r) => r.id !== iNatResult.id)
-    );
+    setSearchResults(prevResults => prevResults.filter(r => r.id !== iNatResult.id));
   };
 
   const handleDeleteBird = (birdId: any) => {
-    // ... (rest of the function, no changes)
-    setBirds((prevBirds) => prevBirds.filter((b) => b.id !== birdId));
+    setBirds(prevBirds => prevBirds.filter(b => b.id !== birdId));
   };
 
-  // --- Photo Quiz Logic ---
+  const handleRemoveSearchResult = (id: number) => {
+    setSearchResults(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleClearList = () => {
+    if (birds.length === 0) return;
+    if (window.confirm("Are you sure you want to REMOVE ALL birds from your current list? This cannot be undone.")) {
+      setBirds([]);
+      setError("Current list cleared.");
+    }
+  };
+
+  // --- LOCATION MANAGER FUNCTIONS ---
+
+  const handleSaveList = (locationName: string) => {
+    const trimmedName = locationName.trim();
+    if (!trimmedName) {
+      setError("Location name cannot be empty.");
+      return;
+    }
+    if (birds.length === 0) {
+      setError("Cannot save an empty list. Please add birds first.");
+      return;
+    }
+    if (savedLocations.some(loc => loc.name.toLowerCase() === trimmedName.toLowerCase())) {
+      setError(`A location named "${trimmedName}" already exists.`);
+      return;
+    }
+
+    const newLocation = { name: trimmedName, birds: [...birds] };
+    setSavedLocations(prev => [...prev, newLocation].sort((a, b) => a.name.localeCompare(b.name)));
+    setBirds([]);
+    setSearchQuery('');
+    setError(`List "${trimmedName}" saved successfully! Your current list is now empty.`);
+  };
+
+  const handleLoadList = (locationName: string) => {
+    const location = savedLocations.find(loc => loc.name === locationName);
+    if (location) {
+      setBirds([...location.birds]);
+      setAppState('manage');
+      setError(`List "${locationName}" loaded. (${location.birds.length} birds)`);
+    }
+  };
+
+  const handleDeleteList = (locationName: string) => {
+    if (window.confirm(`Are you sure you want to delete the list for "${locationName}"?`)) {
+      setSavedLocations(prev => prev.filter(loc => loc.name !== locationName));
+      setError(`List "${locationName}" deleted.`);
+    }
+  };
+
+  // --- QUIZ LOGIC ---
   const generatePhotoQuizQuestion = useCallback(() => {
-    // ... (rest of the function, no changes)
     if (birds.length < 2) {
       setError("You need at least 2 birds to start a quiz.");
-      setAppState("manage");
+      setAppState('manage');
       return;
     }
     setSelectedAnswer(null);
     setFeedback(null);
 
-    // 1. Select correct bird
     const correctBird = birds[Math.floor(Math.random() * birds.length)];
     const correctName = correctBird.preferred_common_name || correctBird.name;
     const correctLastName = getLastName(correctName);
 
-    // 2. Build list of potential wrong answers
-    const otherBirds = birds.filter((b) => b.id !== correctBird.id);
+    const otherBirds = birds.filter(b => b.id !== correctBird.id);
 
-    // 3. Find "smart" matches (same last word, e.g., "Sunbird")
-    const smartMatches = otherBirds.filter((b) => {
+    const smartMatches = otherBirds.filter(b => {
       const name = b.preferred_common_name || b.name;
       return getLastName(name) === correctLastName;
     });
 
-    // 4. Find "random" matches (different last word)
-    const randomMatches = otherBirds.filter((b) => {
+    const randomMatches = otherBirds.filter(b => {
       const name = b.preferred_common_name || b.name;
       return getLastName(name) !== correctLastName;
     });
-
+    
     const shuffledSmart = shuffleArray(smartMatches);
     const shuffledRandom = shuffleArray(randomMatches);
-
+    
     const wrongAnswers = [];
-    const numOptions = Math.min(3, otherBirds.length); // We need 3 wrong answers, or fewer if list is small
+    const numOptions = Math.min(3, otherBirds.length);
 
-    // 5. Fill with smart matches first
     const smartToAdd = shuffledSmart.slice(0, numOptions);
     wrongAnswers.push(...smartToAdd);
 
-    // 6. Fill the rest with random matches
     const randomNeeded = numOptions - wrongAnswers.length;
     if (randomNeeded > 0) {
       const randomToAdd = shuffledRandom.slice(0, randomNeeded);
       wrongAnswers.push(...randomToAdd);
     }
-
-    // 7. Create final options list
-    const options = wrongAnswers.map((b) => b.preferred_common_name || b.name);
+    
+    const options = wrongAnswers.map(b => b.preferred_common_name || b.name);
     options.push(correctName);
     const finalOptions = shuffleArray(options);
 
     setQuizQuestion({
       bird: {
         name: correctName,
-        url: correctBird.default_photo?.medium_url,
+        url: correctBird.default_photo?.medium_url
       },
-      options: finalOptions,
+      options: finalOptions
     });
   }, [birds]);
 
   const startPhotoQuiz = () => {
-    // ... (rest of the function, no changes)
     if (birds.length < 2) {
       setError("Please add at least 2 birds to start a photo quiz.");
       return;
     }
     setError(null);
-    setAppState("photoQuiz");
+    setAppState('photoQuiz');
     generatePhotoQuizQuestion();
   };
 
   const handlePhotoAnswerSelect = (optionName: string) => {
-    // ... (rest of the function, no changes)
     if (feedback) return;
     setSelectedAnswer(optionName);
     if (optionName === quizQuestion.bird.name) {
-      setFeedback("correct");
+      setFeedback('correct');
     } else {
-      setFeedback("incorrect");
+      setFeedback('incorrect');
     }
   };
 
-  // --- Render Functions ---
-  // ... (All render functions remain exactly the same) ...
+  // --- RENDER FUNCTIONS ---
 
   const renderLoading = (text = "Loading...") => (
-    <div className="flex flex-col items-center justify-center h-full text-gray-500">
+    <div className="flex flex-col items-center justify-center h-full text-gray-500 py-8">
       <Loader2 className="h-12 w-12 animate-spin" />
       <p className="mt-4 text-lg">{text}</p>
     </div>
   );
-const handleRemoveSearchResult = (id: number) => {
-  setSearchResults(prev => prev.filter(r => r.id !== id));
-};
 
-const handleClearList = () => {
-  if (birds.length === 0) return;
-  if (window.confirm("Are you sure you want to REMOVE ALL birds from your current list? This cannot be undone.")) {
-    setBirds([]);
-    setError("Current list cleared.");
-  }
-};
-const renderManageBirds = () => (
+  const renderManageBirds = () => (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Manage Your Lifer Lists</h2>
 
@@ -440,7 +348,6 @@ const renderManageBirds = () => (
                     </div>
                     
                     <div className="flex space-x-2">
-                      {/* Delete Result Button */}
                       <button
                         onClick={() => handleRemoveSearchResult(result.id)}
                         className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
@@ -448,18 +355,16 @@ const renderManageBirds = () => (
                       >
                         <Trash2 className="h-5 w-5" />
                       </button>
-
-                      {/* Add Bird Button */}
                       <button
                         onClick={() => handleAddBird(result)}
-                        disabled={isAdding === result.id || birds.some(b => b.id === result.id)}
+                        disabled={isAdding === result.id || birds.some((b:any) => b.id === result.id)}
                         className="p-2 bg-green-500 text-white rounded-md font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 flex-shrink-0"
                         title={`Add ${result.preferred_common_name || result.name}`}
                       >
                         {isAdding === result.id ? (
                           <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
-                          birds.some(b => b.id === result.id) ? <CheckCircle className="h-5 w-5" /> : <Plus className="h-5 w-5" />
+                          birds.some((b:any) => b.id === result.id) ? <CheckCircle className="h-5 w-5" /> : <Plus className="h-5 w-5" />
                         )}
                       </button>
                     </div>
@@ -518,7 +423,6 @@ const renderManageBirds = () => (
               Location List Manager ({savedLocations.length})
             </h3>
             
-            {/* Save Current List Input */}
             <form onSubmit={(e) => {
               e.preventDefault();
               const input = e.currentTarget.elements.namedItem("locationName") as HTMLInputElement;
@@ -542,7 +446,6 @@ const renderManageBirds = () => (
               </button>
             </form>
 
-            {/* Display Saved Lists */}
             {savedLocations.length > 0 && (
               <div className="mt-4 space-y-2 max-h-64 overflow-y-auto">
                 <p className="text-sm font-semibold text-yellow-700 sticky top-0 bg-yellow-50 z-10 p-1 -m-1 border-b border-yellow-200">Saved Locations:</p>
@@ -577,12 +480,11 @@ const renderManageBirds = () => (
         </div>
       </div>
       
-      {/* --- Current List Section (Remains Below the Two Columns) --- */}
+      {/* --- Current List Section --- */}
       <div className="mt-8 border-t pt-8">
         <div className="flex justify-between items-center mb-4">
            <h3 className="text-xl font-semibold text-gray-800">Your Current List ({birds.length})</h3>
            
-           {/* CLEAR LIST BUTTON */}
            {birds.length > 0 && (
              <button
                onClick={handleClearList}
@@ -623,7 +525,6 @@ const renderManageBirds = () => (
         </div>
       </div>
       
-      {/* --- Quiz Buttons (Remains Below) --- */}
       <div className="grid grid-cols-1 mt-6">
         <button
           onClick={startPhotoQuiz}
@@ -636,7 +537,8 @@ const renderManageBirds = () => (
       </div>
     </div>
   );
-const renderPhotoQuiz = () => {
+
+  const renderPhotoQuiz = () => {
     if (!quizQuestion) return renderLoading();
     const { bird, options } = quizQuestion;
 
@@ -705,31 +607,26 @@ const renderPhotoQuiz = () => {
     if (appState === 'photoQuiz') {
       return renderPhotoQuiz();
     }
-    // Default to manage
     return renderManageBirds();
   };
+  
   return (
     <div className="w-full h-screen bg-gray-100 font-inter antialiased">
       <header className="bg-white shadow-md">
-        {/* ... (rest of the header, no changes) ... */}
         <div className="container mx-auto px-4 py-4 flex flex-wrap justify-between items-center">
           <div className="flex items-center space-x-2 mb-2 sm:mb-0">
             <Bird className="h-8 w-8 text-blue-600" />
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">
-              Nature Quiz Builder
-            </h1>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800">Nature Quiz Builder</h1>
           </div>
           <div className="flex space-x-2">
             <button
               onClick={() => {
                 setFeedback(null);
-                setAppState("manage");
+                setAppState('manage');
               }}
-              disabled={appState === "manage"}
+              disabled={appState === 'manage'}
               className={`p-2 rounded-md flex items-center font-semibold transition-colors ${
-                appState === "manage"
-                  ? "bg-blue-100 text-blue-700"
-                  : "text-gray-600 hover:bg-gray-200"
+                appState === 'manage' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-200'
               }`}
               title="Manage List"
             >
@@ -738,11 +635,9 @@ const renderPhotoQuiz = () => {
             </button>
             <button
               onClick={startPhotoQuiz}
-              disabled={appState === "photoQuiz" || birds.length < 2}
+              disabled={appState === 'photoQuiz' || birds.length < 2}
               className={`p-2 rounded-md flex items-center font-semibold transition-colors ${
-                appState === "photoQuiz"
-                  ? "bg-blue-100 text-blue-700"
-                  : "text-gray-600 hover:bg-gray-200"
+                appState === 'photoQuiz' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-200'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
               title="Start Photo Quiz (All)"
             >
@@ -752,27 +647,25 @@ const renderPhotoQuiz = () => {
           </div>
         </div>
       </header>
-
-{error && (
-        // Check if the message contains success keywords to change the styling
-        // We look for 'saved successfully', 'loaded', or 'deleted'
+      
+      {error && (
         <div 
           className={`p-4 m-4 rounded-md border-l-4 transition-colors ${
             error.includes("saved successfully") || 
             error.includes("loaded") || 
-            error.includes("deleted") 
+            error.includes("deleted") ||
+            error.includes("cleared")
               ? 'bg-green-100 border-green-500 text-green-700' 
               : 'bg-red-100 border-red-500 text-red-700'
           }`}
           role="alert"
         >
           <p className="font-bold">
-            {/* Change the title based on success or error */}
-            {error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") ? 'Status' : 'Error'}
+            {error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") || error.includes("cleared") ? 'Status' : 'Error'}
           </p>
           <p>{error}</p>
           <button onClick={() => setError(null)} className={`mt-2 text-sm font-semibold ${
-            error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") ? 'text-green-600' : 'text-red-600'
+            error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") || error.includes("cleared") ? 'text-green-600' : 'text-red-600'
           }`}>
             Dismiss
           </button>
