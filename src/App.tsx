@@ -40,9 +40,6 @@ export default function App() {
   const [quizQuestion, setQuizQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-const [quizQuestion, setQuizQuestion] = useState<any>(null);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
 // --- Saved Locations State & Logic ---
 
 /*
