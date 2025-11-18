@@ -303,7 +303,7 @@ export default function App() {
         <div className="w-full md:w-2/3">
                     
           <form onSubmit={handleSearch} className="mb-6 p-4 bg-gray-50 rounded-lg shadow-md">
-            <p className="text-sm text-gray-600 mb-3">Paste bird names below, one per line.</p>
+            <p className="text-sm text-gray-600 mb-3">Paste bird names below, one per line. Add the search results to your list and test your knowledge by taking the Photo Quiz. You can save your lists in the Location List Manager on the right. Good luck!</p>
             <div className="flex flex-col space-y-3">
               <textarea
                 value={searchQuery}
