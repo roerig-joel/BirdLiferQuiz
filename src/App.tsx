@@ -392,27 +392,28 @@ export default function App() {
                    </div>
                  </div>
                  <div className="p-4 bg-gray-50 text-xs text-gray-600">
+                    <div className="p-4 bg-gray-50 text-xs text-gray-600">
                     <div className="flex items-center mb-2">
                       <img src="https://static.inaturalist.org/sites/1-favicon.png" alt="iNaturalist" className="h-4 w-4 mr-2" />
                       <span>Bird images provided by iNaturalist.</span>
                     </div>
-                    <p className="mb-2">Accessed {new Date().toLocaleDateString()}.</p>
+                    <p className="mb-2">
+                      Accessed {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.
+                    </p>
                     <a 
                       href="https://www.inaturalist.org/donate" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline font-semibold"
+                      className="text-blue-600 hover:underline font-semibold block mb-3"
                     >
                       Consider donating to iNaturalist.
                     </a>
+                    
+                    {/* Footer Section */}
+                    <div className="border-t border-gray-200 pt-2 mt-2 text-gray-500">
+                      &copy; Tachymarptis 2025. <a href="mailto:roerig@gmail.com?subject=Quiz My Lifers" className="hover:text-blue-600 hover:underline">Contact</a>.
+                    </div>
                  </div>
-               </>
-             ) : (
-               <div className="h-48 flex items-center justify-center text-gray-400">
-                 <Loader2 className="h-8 w-8 animate-spin" />
-               </div>
-             )}
-          </div>
 
           {/* --- Saved Locations Manager --- */}
           <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg shadow-md sticky top-4">
