@@ -631,7 +631,78 @@ const renderManageBirds = () => (
       </div>
     </div>
   );
+const renderPhotoQuiz = () => {
+    if (!quizQuestion) return renderLoading();
+    const { bird, options } = quizQuestion;
 
+    return (
+      <div className="p-4 md:p-8 max-w-2xl mx-auto">
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">Who's this bird?</h2>
+        
+        <div className="w-full h-64 md:h-96 mb-6 bg-gray-200 rounded-lg shadow-lg overflow-hidden flex items-center justify-center">
+          {bird.url ? (
+            <img
+              src={bird.url}
+              alt="Bird for identification"
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-contain"
+            />
+          ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
+              <Ban className="h-16 w-16" />
+              <p className="mt-2 text-center">No image available for this bird.</p>
+            </div>
+          )}
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {options.map((option: string) => {
+            const isCorrect = option === bird.name;
+            const isSelected = option === selectedAnswer;
+            let buttonClass = "p-3 rounded-md text-left font-medium text-lg transition-all shadow-sm ";
+            
+            if (feedback) {
+              if (isCorrect) buttonClass += "bg-green-500 text-white ring-4 ring-green-300";
+              else if (isSelected) buttonClass += "bg-red-500 text-white ring-4 ring-red-300";
+              else buttonClass += "bg-gray-200 text-gray-500 opacity-60";
+            } else {
+              buttonClass += "bg-white hover:bg-blue-50 text-gray-800 border border-gray-300 hover:border-blue-500 cursor-pointer";
+            }
+            return (
+              <button key={option} onClick={() => handlePhotoAnswerSelect(option)} disabled={!!feedback} className={buttonClass}>
+                {option}
+              </button>
+            );
+          })}
+        </div>
+        
+        {feedback && (
+          <div className="mt-6 text-center">
+            {feedback === 'correct' ? (
+              <h3 className="text-2xl font-bold text-green-600">Correct!</h3>
+            ) : (
+              <h3 className="text-2xl font-bold text-red-600">Incorrect</h3>
+            )}
+            <button
+              onClick={generatePhotoQuizQuestion}
+              className="mt-4 p-3 bg-blue-600 text-white rounded-md font-semibold text-lg hover:bg-blue-700 transition-colors"
+            >
+              Next Question
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // --- Main Render ---
+  const renderContent = () => {
+    if (appState === 'photoQuiz') {
+      return renderPhotoQuiz();
+    }
+    // Default to manage
+    return renderManageBirds();
+  };
   return (
     <div className="w-full h-screen bg-gray-100 font-inter antialiased">
       <header className="bg-white shadow-md">
