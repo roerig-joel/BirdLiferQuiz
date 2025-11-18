@@ -40,6 +40,26 @@ export default function App() {
   const [quizQuestion, setQuizQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  // Random Bird Widget State
+const [randomBird, setRandomBird] = useState<any>(null);
+
+// Fetch a random bird on app load
+useEffect(() => {
+  const fetchRandomBird = async () => {
+    try {
+      // We fetch a random page (1-500) of Bird (Aves) species to get a random high-quality photo
+      const randomPage = Math.floor(Math.random() * 500) + 1;
+      const response = await fetch(`https://api.inaturalist.org/v1/taxa?iconic_taxa=Aves&rank=species&per_page=1&page=${randomPage}&photos=true`);
+      const data = await response.json();
+      if (data.results && data.results.length > 0) {
+        setRandomBird(data.results[0]);
+      }
+    } catch (e) {
+      console.error("Failed to fetch random bird", e);
+    }
+  };
+  fetchRandomBird();
+}, []);
 // --- Saved Locations State & Logic ---
 
 /*
@@ -170,7 +190,7 @@ const handleDeleteList = (locationName: string) => {
     const searchPromises = birdNames.map(async (name) => {
       try {
         const response = await fetch(
-          `https://api.inaturalist.org/v1/taxa/autocomplete?q=${encodeURIComponent(
+          `https://api.inaturalist.org/v1/taxa/autocomplete?qq=${encodeURIComponent(name.trim())}&iconic_taxa=Aves(
             name.trim()
           )}`
         );
@@ -350,7 +370,17 @@ const handleDeleteList = (locationName: string) => {
       <p className="mt-4 text-lg">{text}</p>
     </div>
   );
+const handleRemoveSearchResult = (id: number) => {
+  setSearchResults(prev => prev.filter(r => r.id !== id));
+};
 
+const handleClearList = () => {
+  if (birds.length === 0) return;
+  if (window.confirm("Are you sure you want to REMOVE ALL birds from your current list? This cannot be undone.")) {
+    setBirds([]);
+    setError("Current list cleared.");
+  }
+};
 const renderManageBirds = () => (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Manage Your Lifer Lists</h2>
@@ -362,7 +392,7 @@ const renderManageBirds = () => (
           <h3 className="text-xl font-semibold text-gray-800 mb-4">Add New Birds to Current List</h3>
           
           <form onSubmit={handleSearch} className="mb-6 p-4 bg-gray-50 rounded-lg shadow-md">
-            <p className="text-sm text-gray-600 mb-3">Paste bird names below, one per line. They will be added to your current list.</p>
+            <p className="text-sm text-gray-600 mb-3">Paste bird names below, one per line.</p>
             <div className="flex flex-col space-y-3">
               <textarea
                 value={searchQuery}
@@ -384,12 +414,12 @@ const renderManageBirds = () => (
 
           {/* Search Results Section */}
           {isSearching && (
-            renderLoading("Searching iNaturalist for your list...")
+            renderLoading("Searching iNaturalist for birds...")
           )}
           {searchResults.length > 0 && (
             <div className="mb-6">
               <h3 className="text-xl font-semibold mb-3">Search Results ({searchResults.length})</h3>
-              <p className="text-sm text-gray-600 mb-3">Click '+' to add birds to your quiz list.</p>
+              <p className="text-sm text-gray-600 mb-3">Click '+' to add, or 'Trash' to remove incorrect matches.</p>
               <div className="space-y-3">
                 {searchResults.map((result) => (
                   <div key={result.id} className="bg-white p-3 rounded-lg shadow-md flex items-center space-x-3">
@@ -403,18 +433,31 @@ const renderManageBirds = () => (
                       <p className="font-medium text-gray-800 truncate">{result.preferred_common_name || result.name}</p>
                       <p className="text-sm text-gray-500 italic truncate">{result.name}</p>
                     </div>
-                    <button
-                      onClick={() => handleAddBird(result)}
-                      disabled={isAdding === result.id || birds.some(b => b.id === result.id)}
-                      className="p-2 bg-green-500 text-white rounded-md font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 flex-shrink-0"
-                      title={`Add ${result.preferred_common_name || result.name}`}
-                    >
-                      {isAdding === result.id ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        birds.some(b => b.id === result.id) ? <CheckCircle className="h-5 w-5" /> : <Plus className="h-5 w-5" />
-                      )}
-                    </button>
+                    
+                    <div className="flex space-x-2">
+                      {/* Delete Result Button */}
+                      <button
+                        onClick={() => handleRemoveSearchResult(result.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                        title="Remove this result"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+
+                      {/* Add Bird Button */}
+                      <button
+                        onClick={() => handleAddBird(result)}
+                        disabled={isAdding === result.id || birds.some(b => b.id === result.id)}
+                        className="p-2 bg-green-500 text-white rounded-md font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 flex-shrink-0"
+                        title={`Add ${result.preferred_common_name || result.name}`}
+                      >
+                        {isAdding === result.id ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          birds.some(b => b.id === result.id) ? <CheckCircle className="h-5 w-5" /> : <Plus className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -422,10 +465,49 @@ const renderManageBirds = () => (
           )}
         </div>
 
-        {/* === COLUMN 2: Location Manager (Narrower Column) === */}
-        <div className="w-full md:w-1/3">
+        {/* === COLUMN 2: Random Bird & Location Manager (Narrower Column) === */}
+        <div className="w-full md:w-1/3 space-y-6">
+          
+          {/* --- Random Bird Widget --- */}
+          <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+             {randomBird ? (
+               <>
+                 <div className="relative h-48 w-full bg-gray-100">
+                   <img 
+                     src={randomBird.default_photo?.medium_url} 
+                     alt={randomBird.name}
+                     className="w-full h-full object-cover"
+                   />
+                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 pt-8">
+                     <p className="text-white font-bold truncate">{randomBird.preferred_common_name || randomBird.name}</p>
+                     <p className="text-white/80 text-xs italic">{randomBird.name}</p>
+                   </div>
+                 </div>
+                 <div className="p-4 bg-gray-50 text-xs text-gray-600">
+                    <div className="flex items-center mb-2">
+                      <img src="https://static.inaturalist.org/sites/1-favicon.png" alt="iNaturalist" className="h-4 w-4 mr-2" />
+                      <span>Bird images provided by iNaturalist.</span>
+                    </div>
+                    <p className="mb-2">Accessed {new Date().toLocaleDateString()}.</p>
+                    <a 
+                      href="https://www.inaturalist.org/donate" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline font-semibold"
+                    >
+                      Consider donating to iNaturalist.
+                    </a>
+                 </div>
+               </>
+             ) : (
+               <div className="h-48 flex items-center justify-center text-gray-400">
+                 <Loader2 className="h-8 w-8 animate-spin" />
+               </div>
+             )}
+          </div>
+
           {/* --- Saved Locations Manager --- */}
-          <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg shadow-md sticky top-0">
+          <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg shadow-md sticky top-4">
             <h3 className="text-xl font-bold text-yellow-800 mb-4 flex items-center">
               <Brain className="h-5 w-5 mr-2" />
               Location List Manager ({savedLocations.length})
@@ -457,7 +539,7 @@ const renderManageBirds = () => (
 
             {/* Display Saved Lists */}
             {savedLocations.length > 0 && (
-              <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
+              <div className="mt-4 space-y-2 max-h-64 overflow-y-auto">
                 <p className="text-sm font-semibold text-yellow-700 sticky top-0 bg-yellow-50 z-10 p-1 -m-1 border-b border-yellow-200">Saved Locations:</p>
                 {savedLocations.map((loc) => (
                   <div key={loc.name} className="flex items-center justify-between p-2 bg-white rounded-md border shadow-sm">
@@ -491,10 +573,28 @@ const renderManageBirds = () => (
       </div>
       
       {/* --- Current List Section (Remains Below the Two Columns) --- */}
-      <div className="mt-6">
-        <h3 className="text-xl font-semibold mb-3">Your Current List ({birds.length})</h3>
+      <div className="mt-8 border-t pt-8">
+        <div className="flex justify-between items-center mb-4">
+           <h3 className="text-xl font-semibold text-gray-800">Your Current List ({birds.length})</h3>
+           
+           {/* CLEAR LIST BUTTON */}
+           {birds.length > 0 && (
+             <button
+               onClick={handleClearList}
+               className="flex items-center px-3 py-1.5 bg-red-100 text-red-600 rounded-md hover:bg-red-200 transition-colors text-sm font-semibold"
+             >
+               <Trash2 className="h-4 w-4 mr-1" />
+               Clear List
+             </button>
+           )}
+        </div>
+
         {birds.length === 0 && !isSearching && (
-          <p className="text-gray-500">Your quiz list is empty. Add birds from the Search section above or load a saved list.</p>
+          <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
+            <Bird className="h-12 w-12 mx-auto text-gray-300 mb-2" />
+            <p className="text-gray-500">Your quiz list is empty.</p>
+            <p className="text-gray-400 text-sm">Add birds from the Search section above or load a saved list.</p>
+          </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {birds.map((bird) => (
@@ -518,107 +618,19 @@ const renderManageBirds = () => (
         </div>
       </div>
       
-      {/* --- Quiz Buttons (Remains Below the Two Columns) --- */}
+      {/* --- Quiz Buttons (Remains Below) --- */}
       <div className="grid grid-cols-1 mt-6">
         <button
           onClick={startPhotoQuiz}
           disabled={birds.length < 2}
-          className="w-full flex items-center justify-center p-3 bg-green-600 text-white rounded-md font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-50"
+          className="w-full flex items-center justify-center p-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-bold text-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg disabled:opacity-50 disabled:shadow-none"
         >
-          <Brain className="h-6 w-6 mr-2" />
+          <Brain className="h-8 w-8 mr-3" />
           Start Photo Quiz!
         </button>
       </div>
     </div>
   );
-
-  const renderPhotoQuiz = () => {
-    // ... (rest of the function, no changes)
-    if (!quizQuestion) return renderLoading();
-    const { bird, options } = quizQuestion;
-
-    return (
-      <div className="p-4 md:p-8 max-w-2xl mx-auto">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">
-          Who's this bird?
-        </h2>
-
-        <div className="w-full h-64 md:h-96 mb-6 bg-gray-200 rounded-lg shadow-lg overflow-hidden flex items-center justify-center">
-          {bird.url ? (
-            <img
-              src={bird.url}
-              alt="Bird for identification"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-contain"
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
-              <Ban className="h-16 w-16" />
-              <p className="mt-2 text-center">
-                No image available for this bird.
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {options.map((option: string) => {
-            const isCorrect = option === bird.name;
-            const isSelected = option === selectedAnswer;
-            let buttonClass =
-              "p-3 rounded-md text-left font-medium text-lg transition-all shadow-sm ";
-
-            if (feedback) {
-              if (isCorrect)
-                buttonClass += "bg-green-500 text-white ring-4 ring-green-300";
-              else if (isSelected)
-                buttonClass += "bg-red-500 text-white ring-4 ring-red-300";
-              else buttonClass += "bg-gray-200 text-gray-500 opacity-60";
-            } else {
-              buttonClass +=
-                "bg-white hover:bg-blue-50 text-gray-800 border border-gray-300 hover:border-blue-500 cursor-pointer";
-            }
-            return (
-              <button
-                key={option}
-                onClick={() => handlePhotoAnswerSelect(option)}
-                disabled={!!feedback}
-                className={buttonClass}
-              >
-                {option}
-              </button>
-            );
-          })}
-        </div>
-
-        {feedback && (
-          <div className="mt-6 text-center">
-            {feedback === "correct" ? (
-              <h3 className="text-2xl font-bold text-green-600">Correct!</h3>
-            ) : (
-              <h3 className="text-2xl font-bold text-red-600">Incorrect</h3>
-            )}
-            <button
-              onClick={generatePhotoQuizQuestion}
-              className="mt-4 p-3 bg-blue-600 text-white rounded-md font-semibold text-lg hover:bg-blue-700 transition-colors"
-            >
-              Next Question
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // --- Main Render ---
-  const renderContent = () => {
-    // ... (rest of the function, no changes)
-    if (appState === "photoQuiz") {
-      return renderPhotoQuiz();
-    }
-    // Default to manage
-    return renderManageBirds();
-  };
 
   return (
     <div className="w-full h-screen bg-gray-100 font-inter antialiased">
