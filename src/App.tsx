@@ -44,22 +44,28 @@ export default function App() {
 const [randomBird, setRandomBird] = useState<any>(null);
 
 // Fetch a random bird on app load
-useEffect(() => {
-  const fetchRandomBird = async () => {
-    try {
-      // We fetch a random page (1-500) of Bird (Aves) species to get a random high-quality photo
-      const randomPage = Math.floor(Math.random() * 500) + 1;
-      const response = await fetch(`https://api.inaturalist.org/v1/taxa?iconic_taxa=Aves&rank=species&per_page=1&page=${randomPage}&photos=true`);
-      const data = await response.json();
-      if (data.results && data.results.length > 0) {
-        setRandomBird(data.results[0]);
+  useEffect(() => {
+    const fetchRandomBird = async () => {
+      try {
+        // taxon_id=3 is strictly Class Aves (Birds)
+        // order_by=observations_count ensures we get popular birds with good photos
+        // We pick a random page from the top 1000 most observed birds
+        const randomPage = Math.floor(Math.random() * 1000) + 1;
+        
+        const response = await fetch(
+          `https://api.inaturalist.org/v1/taxa?taxon_id=3&rank=species&per_page=1&page=${randomPage}&photos=true&order_by=observations_count`
+        );
+        
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          setRandomBird(data.results[0]);
+        }
+      } catch (e) {
+        console.error("Failed to fetch random bird", e);
       }
-    } catch (e) {
-      console.error("Failed to fetch random bird", e);
-    }
-  };
-  fetchRandomBird();
-}, []);
+    };
+    fetchRandomBird();
+  }, []);
 // --- Saved Locations State & Logic ---
 
 /*
