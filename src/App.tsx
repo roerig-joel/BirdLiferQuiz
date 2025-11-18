@@ -40,7 +40,94 @@ export default function App() {
   const [quizQuestion, setQuizQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+const [quizQuestion, setQuizQuestion] = useState<any>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+// --- Saved Locations State & Logic ---
 
+/*
+ * FEATURE: MULTI-LIST MANAGEMENT
+ * GOAL: Create a robust system for saving, loading, and managing multiple named bird lists.
+ * * 1. Define new state: `savedLocations` initialized from localStorage (key: 'birdQuizLocations').
+ * The state structure should be an array of objects: { name: string, birds: any[] }.
+ * 2. Implement persistence: Use a useEffect hook to save `savedLocations` to localStorage anytime it changes.
+ * 3. Implement a function `handleSaveList(locationName: string)` that:
+ * a) Checks if the name already exists.
+ * b) If current 'birds' list is empty, display an error.
+ * c) Saves the current 'birds' list into a new location object in `savedLocations`.
+ * d) Clears the current 'birds' list and the 'searchQuery'.
+ * 4. Implement a function `handleLoadList(locationName: string)` that:
+ * a) Finds the list by name in `savedLocations`.
+ * b) Sets the current `birds` state to the selected list's birds.
+ * 5. Implement a function `handleDeleteList(locationName: string)` to remove a list from `savedLocations`.
+ */
+
+// Copilot: Begin generating the state and functions below:
+// --- Code generated manually to bypass Copilot bug ---
+const [savedLocations, setSavedLocations] = useState<{ name: string; birds: any[] }[]>(() => {
+  try {
+    const saved = localStorage.getItem("birdQuizLocations");
+    if (saved) return JSON.parse(saved);
+  } catch (e) {
+    console.error("Failed to parse locations from localStorage", e);
+  }
+  return [];
+});
+
+// NEW: useEffect to save the master list of locations
+useEffect(() => {
+  localStorage.setItem("birdQuizLocations", JSON.stringify(savedLocations));
+}, [savedLocations]);
+
+
+// OLD: Original useEffect to save the current 'birds' list
+useEffect(() => {
+  localStorage.setItem("birdQuizList", JSON.stringify(birds));
+}, [birds]);
+
+
+const handleSaveList = (locationName: string) => {
+  const trimmedName = locationName.trim();
+  if (!trimmedName) {
+    setError("Location name cannot be empty.");
+    return;
+  }
+  if (birds.length === 0) {
+    setError("Cannot save an empty list. Please add birds first.");
+    return;
+  }
+  if (savedLocations.some(loc => loc.name.toLowerCase() === trimmedName.toLowerCase())) {
+    setError(`A location named "${trimmedName}" already exists.`);
+    return;
+  }
+
+  // Create new location object
+  const newLocation = { name: trimmedName, birds: [...birds] };
+  setSavedLocations(prev => [...prev, newLocation].sort((a, b) => a.name.localeCompare(b.name)));
+  
+  // Clears the current 'birds' list and the 'searchQuery'.
+  setBirds([]);
+  setSearchQuery('');
+  setError(`List "${trimmedName}" saved successfully! Your current list is now empty.`);
+};
+
+const handleLoadList = (locationName: string) => {
+  const location = savedLocations.find(loc => loc.name === locationName);
+  if (location) {
+    setBirds([...location.birds]);
+    setAppState('manage');
+    setError(`List "${locationName}" loaded. (${location.birds.length} birds)`);
+  }
+};
+
+const handleDeleteList = (locationName: string) => {
+  if (window.confirm(`Are you sure you want to delete the list for "${locationName}"?`)) {
+    setSavedLocations(prev => prev.filter(loc => loc.name !== locationName));
+    setError(`List "${locationName}" deleted.`);
+  }
+};
+// --- END manually generated code ---
+  // --- Utility Functions ---
   // --- NEW: Save to localStorage whenever 'birds' changes ---
   useEffect(() => {
     localStorage.setItem("birdQuizList", JSON.stringify(birds));
@@ -272,7 +359,72 @@ export default function App() {
       <h2 className="text-2xl font-bold text-gray-800 mb-4">
         Manage your species list
       </h2>
+{/* --- Saved Locations Manager --- */}
+      <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg shadow">
+        <h3 className="text-xl font-bold text-yellow-800 mb-4 flex items-center">
+          <Brain className="h-5 w-5 mr-2" />
+          Location List Manager ({savedLocations.length})
+        </h3>
+        
+        {/* Save Current List Input */}
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          // Find the input field by its name/id in the form, or use a state variable if defined elsewhere.
+          // Since we don't have a specific state for this input, we'll read it directly from the form.
+          const input = e.currentTarget.elements.namedItem("locationName") as HTMLInputElement;
+          if (input) handleSaveList(input.value);
+        }} className="flex gap-2 mb-4">
+          <input
+            type="text"
+            id="locationName"
+            name="locationName"
+            placeholder="e.g., Arabuko Sokoke"
+            required
+            className="p-2 border rounded-md flex-1 focus:ring-2 focus:ring-yellow-500 min-w-0"
+          />
+          <button
+            type="submit"
+            disabled={birds.length === 0}
+            className="p-2 px-4 bg-yellow-600 text-white rounded-md font-semibold hover:bg-yellow-700 transition-colors disabled:opacity-50 flex-shrink-0"
+          >
+            <Plus className="h-5 w-5 mr-1" />
+            Save Current List ({birds.length})
+          </button>
+        </form>
 
+        {/* Display Saved Lists */}
+        {savedLocations.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm font-semibold text-yellow-700">Saved Locations:</p>
+            {savedLocations.map((loc) => (
+              <div key={loc.name} className="flex items-center justify-between p-2 bg-white rounded-md border shadow-sm">
+                <p className="font-medium text-gray-800 truncate">
+                  {loc.name} <span className="text-sm text-gray-500">({loc.birds.length} birds)</span>
+                </p>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleLoadList(loc.name)}
+                    className="p-1 px-3 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                  >
+                    Load
+                  </button>
+                  <button
+                    onClick={() => handleDeleteList(loc.name)}
+                    className="p-1 text-red-500 hover:text-white hover:bg-red-500 rounded-full transition-colors"
+                    title={`Delete ${loc.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {savedLocations.length === 0 && (
+          <p className="text-gray-500 text-sm">No locations saved yet. Save your current bird list above!</p>
+        )}
+      </div>
+      {/* --- END Saved Locations Manager --- */}
       {/* --- Search Section --- */}
       <form
         onSubmit={handleSearch}
