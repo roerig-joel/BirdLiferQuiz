@@ -376,7 +376,7 @@ export default function App() {
         {/* === COLUMN 2: Random Bird & Location Manager (Narrower Column) === */}
         <div className="w-full md:w-1/3 space-y-6">
           
-          {/* --- Random Bird Widget --- */}
+{/* --- Random Bird Widget --- */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
              {randomBird ? (
                <>
@@ -408,10 +408,11 @@ export default function App() {
                       Consider donating to iNaturalist.
                     </a>
                     
-                  {/* Footer Section */}
+                    {/* Footer Section */}
                     <div className="border-t border-gray-200 pt-2 mt-2 text-gray-500">
                       &copy; Tachymarptis 2025. <a href="mailto:roerig@gmail.com?subject=Quiz My Lifers" className="hover:text-blue-600 hover:underline">Contact</a>.
                     </div>
+                 </div>
                </>
              ) : (
                <div className="h-48 flex items-center justify-center text-gray-400">
