@@ -196,8 +196,7 @@ const handleDeleteList = (locationName: string) => {
     const searchPromises = birdNames.map(async (name) => {
       try {
         const response = await fetch(
-          `https://api.inaturalist.org/v1/taxa/autocomplete?qq=${encodeURIComponent(name.trim())}&iconic_taxa=Aves(
-            name.trim()
+          `https://api.inaturalist.org/v1/taxa/autocomplete?q=${encodeURIComponent(name.trim())}&taxon_id=3`);
           )}`
         );
         if (!response.ok) throw new Error(`API failed for ${name}`);
