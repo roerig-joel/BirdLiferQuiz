@@ -296,14 +296,12 @@ export default function App() {
 
   const renderManageBirds = () => (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Manage Your Lifer Lists</h2>
-
+     
       <div className="flex flex-col md:flex-row gap-6">
         
         {/* === COLUMN 1: Search Section (Wider Column) === */}
         <div className="w-full md:w-2/3">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Add New Birds to Current List</h3>
-          
+                    
           <form onSubmit={handleSearch} className="mb-6 p-4 bg-gray-50 rounded-lg shadow-md">
             <p className="text-sm text-gray-600 mb-3">Paste bird names below, one per line.</p>
             <div className="flex flex-col space-y-3">
@@ -616,7 +614,7 @@ export default function App() {
         <div className="container mx-auto px-4 py-4 flex flex-wrap justify-between items-center">
           <div className="flex items-center space-x-2 mb-2 sm:mb-0">
             <Bird className="h-8 w-8 text-blue-600" />
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">Nature Quiz Builder</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800">Quiz My Lifers</h1>
           </div>
           <div className="flex space-x-2">
             <button
