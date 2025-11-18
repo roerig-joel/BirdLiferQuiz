@@ -694,18 +694,27 @@ const handleDeleteList = (locationName: string) => {
         </div>
       </header>
 
-      {error && (
-        <div
-          className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded-md"
+{error && (
+        // Check if the message contains success keywords to change the styling
+        // We look for 'saved successfully', 'loaded', or 'deleted'
+        <div 
+          className={`p-4 m-4 rounded-md border-l-4 transition-colors ${
+            error.includes("saved successfully") || 
+            error.includes("loaded") || 
+            error.includes("deleted") 
+              ? 'bg-green-100 border-green-500 text-green-700' 
+              : 'bg-red-100 border-red-500 text-red-700'
+          }`}
           role="alert"
         >
-          {/* ... (rest of the error, no changes) ... */}
-          <p className="font-bold">Error</p>
+          <p className="font-bold">
+            {/* Change the title based on success or error */}
+            {error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") ? 'Status' : 'Error'}
+          </p>
           <p>{error}</p>
-          <button
-            onClick={() => setError(null)}
-            className="mt-2 text-sm font-semibold text-red-600"
-          >
+          <button onClick={() => setError(null)} className={`mt-2 text-sm font-semibold ${
+            error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") ? 'text-green-600' : 'text-red-600'
+          }`}>
             Dismiss
           </button>
         </div>
