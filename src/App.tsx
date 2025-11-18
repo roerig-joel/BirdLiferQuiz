@@ -410,7 +410,7 @@ export default function App() {
                     
                     {/* Footer Section */}
                     <div className="border-t border-gray-200 pt-2 mt-2 text-gray-500">
-                      &copy; Tachymarptis 2025. <a href="mailto:roerig@gmail.com?subject=Quiz My Lifers" className="hover:text-blue-600 hover:underline">Contact</a>.
+                      &copy; Tachymarptis 2025. <a href="mailto:roerig@gmail.com?subject=Quiz My Lifers" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 hover:underline">Contact</a>.
                     </div>
                  </div>
                </>
