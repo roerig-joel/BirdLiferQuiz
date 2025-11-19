@@ -33,14 +33,14 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 }); // NEW: Progress Bar State
   const [isAdding, setIsAdding] = useState<number | null>(null);
 
   // --- Quiz State ---
   const [quizQuestion, setQuizQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 });
-
+  
   // --- Random Bird Widget State ---
   const [randomBird, setRandomBird] = useState<any>(null);
 
@@ -61,6 +61,7 @@ export default function App() {
     const fetchRandomBird = async () => {
       try {
         // taxon_id=3 is strictly Class Aves (Birds)
+        // order_by=observations_count ensures we get popular birds with good photos
         const randomPage = Math.floor(Math.random() * 1000) + 1;
         const response = await fetch(
           `https://api.inaturalist.org/v1/taxa?taxon_id=3&rank=species&per_page=1&page=${randomPage}&photos=true&order_by=observations_count`
@@ -95,7 +96,7 @@ export default function App() {
 
   // --- API & LIST FUNCTIONS ---
   
-const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const birdNames = searchQuery.split('\n').filter(name => name.trim() !== '');
     if (birdNames.length === 0) return;
@@ -108,6 +109,7 @@ const handleSearch = async (e: React.FormEvent) => {
     // Helper: Search for a SINGLE bird with RETRY logic
     const fetchBird = async (name: string, retryCount = 0): Promise<any> => {
       try {
+        // taxon_id=3 forces search to only look for BIRDS
         const response = await fetch(`https://api.inaturalist.org/v1/taxa/autocomplete?q=${encodeURIComponent(name.trim())}&taxon_id=3`);
         
         // If we get rate limited (429) or a server error (500+), wait and retry
@@ -121,6 +123,7 @@ const handleSearch = async (e: React.FormEvent) => {
         }
 
         const data = await response.json();
+        
         const topHit = data.results.find(
           (r: any) => r.rank === 'species' && 
           r.default_photo &&
@@ -314,14 +317,14 @@ const handleSearch = async (e: React.FormEvent) => {
 
   const renderManageBirds = () => (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-     
+
       <div className="flex flex-col md:flex-row gap-6">
         
         {/* === COLUMN 1: Search Section (Wider Column) === */}
         <div className="w-full md:w-2/3">
-                    
+          
           <form onSubmit={handleSearch} className="mb-6 p-4 bg-gray-50 rounded-lg shadow-md">
-            <p className="text-sm text-gray-600 mb-3"><span className="font-bold text-blue-600">Quiz My Lifers</span> lets you create photo lists of birds, so you can take quizzes and get better at identifying them. Type or paste (long) lists of bird names, add them to your list and take the quiz as many times as you want. <span className="italic">Bonus feature: save your list as a location.</span></p>
+            <p className="text-sm text-gray-600 mb-3">Paste bird names below, one per line.</p>
             <div className="flex flex-col space-y-3">
               <textarea
                 value={searchQuery}
@@ -341,10 +344,26 @@ const handleSearch = async (e: React.FormEvent) => {
             </div>
           </form>
 
-         {/* Search Results Section */}
+          {/* Search Progress Bar & Results */}
           {isSearching && (
-            renderLoading(`Searching... ${searchProgress.current} / ${searchProgress.total} birds checked`)
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex justify-between text-sm font-semibold text-blue-700 mb-2">
+                 <div className="flex items-center">
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <span>Searching iNaturalist...</span>
+                 </div>
+                 <span>{searchProgress.current} / {searchProgress.total} birds checked</span>
+              </div>
+              {/* The Blue Bar */}
+              <div className="w-full bg-blue-200 rounded-full h-2.5">
+                 <div 
+                   className="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
+                   style={{ width: `${(searchProgress.current / searchProgress.total) * 100}%` }}
+                 ></div>
+              </div>
+            </div>
           )}
+
           {searchResults.length > 0 && (
             <div className="mb-6">
               <h3 className="text-xl font-semibold mb-3">Search Results ({searchResults.length})</h3>
@@ -394,7 +413,7 @@ const handleSearch = async (e: React.FormEvent) => {
         {/* === COLUMN 2: Random Bird & Location Manager (Narrower Column) === */}
         <div className="w-full md:w-1/3 space-y-6">
           
-{/* --- Random Bird Widget --- */}
+          {/* --- Random Bird Widget --- */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
              {randomBird ? (
                <>
