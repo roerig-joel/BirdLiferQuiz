@@ -599,10 +599,10 @@ export default function App() {
         <button
           onClick={startPhotoQuiz}
           disabled={birds.length < 2}
-          className="w-full flex items-center justify-center p-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-bold text-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg disabled:opacity-50 disabled:shadow-none"
+          className="w-full flex items-center justify-center p-4 bg-green-600 text-white rounded-lg font-bold text-xl hover:bg-green-700 transition-all shadow-lg disabled:opacity-50 disabled:shadow-none"
         >
           <Brain className="h-8 w-8 mr-3" />
-          Start Photo Quiz!
+          Quiz me now!
         </button>
       </div>
     </div>
@@ -719,7 +719,7 @@ export default function App() {
             <button
               onClick={startPhotoQuiz}
               disabled={appState === 'photoQuiz' || birds.length < 2}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`flex items-center px-4 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed`}
               title="Start Photo Quiz (All)"
             >
               <Brain className="h-5 w-5 sm:mr-2" />
