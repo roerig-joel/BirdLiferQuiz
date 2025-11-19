@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Bird, Plus, Trash2, Brain, Loader2, List, Search, CheckCircle, Ban, MapPin 
+  Bird, Plus, Trash2, Brain, Loader2, List, Search, CheckCircle, Ban, MapPin, Trophy, Flame 
 } from 'lucide-react';
 
 export default function App() {
@@ -23,11 +23,15 @@ export default function App() {
   const [appState, setAppState] = useState('manage'); // 'manage', 'photoQuiz'
   const [error, setError] = useState<string | null>(null);
 
-  // --- Saved Locations State ---
-  const [savedLocations, setSavedLocations] = useState<{ name: string; birds: any[] }[]>(() => {
+  // --- Saved Locations State (With High Scores) ---
+  const [savedLocations, setSavedLocations] = useState<{ name: string; birds: any[]; highScore: number }[]>(() => {
     try {
       const saved = localStorage.getItem("birdQuizLocations");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Ensure older saves get a highScore property
+        return parsed.map((loc: any) => ({ ...loc, highScore: loc.highScore || 0 }));
+      }
     } catch (e) {
       console.error("Failed to parse locations from localStorage", e);
     }
@@ -45,6 +49,7 @@ export default function App() {
   const [quizQuestion, setQuizQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [currentStreak, setCurrentStreak] = useState(0); // Streak Counter
   
   // --- Random Bird Widget State ---
   const [randomBird, setRandomBird] = useState<any>(null);
@@ -205,6 +210,7 @@ export default function App() {
     if (window.confirm("Are you sure you want to REMOVE ALL birds from your current list? This cannot be undone.")) {
       setBirds([]);
       setCurrentListName("My List"); 
+      setCurrentStreak(0);
     }
   };
 
@@ -225,11 +231,12 @@ export default function App() {
       return;
     }
 
-    const newLocation = { name: trimmedName, birds: [...birds] };
+    const newLocation = { name: trimmedName, birds: [...birds], highScore: currentStreak };
     setSavedLocations(prev => [...prev, newLocation].sort((a, b) => a.name.localeCompare(b.name)));
     setBirds([]);
     setSearchQuery('');
     setCurrentListName(trimmedName); 
+    setCurrentStreak(0);
   };
 
   const handleLoadList = (locationName: string) => {
@@ -237,6 +244,7 @@ export default function App() {
     if (location) {
       setBirds([...location.birds]);
       setCurrentListName(locationName);
+      setCurrentStreak(0);
       setAppState('manage');
     }
   };
@@ -315,10 +323,28 @@ export default function App() {
   const handlePhotoAnswerSelect = (optionName: string) => {
     if (feedback) return;
     setSelectedAnswer(optionName);
-    if (optionName === quizQuestion.bird.name) {
+    
+    const isCorrect = optionName === quizQuestion.bird.name;
+    
+    if (isCorrect) {
       setFeedback('correct');
+      // Increment Streak
+      const newStreak = currentStreak + 1;
+      setCurrentStreak(newStreak);
+
+      // Update High Score if applicable
+      if (currentListName !== "My List") {
+        setSavedLocations(prev => prev.map(loc => {
+          if (loc.name === currentListName) {
+            return { ...loc, highScore: Math.max(loc.highScore, newStreak) };
+          }
+          return loc;
+        }));
+      }
+
     } else {
       setFeedback('incorrect');
+      setCurrentStreak(0); // Reset streak
     }
   };
 
@@ -521,9 +547,15 @@ export default function App() {
                 <p className="text-sm font-semibold text-yellow-700 sticky top-0 bg-yellow-50 z-10 p-1 -m-1 border-b border-yellow-200">Saved Locations:</p>
                 {savedLocations.map((loc) => (
                   <div key={loc.name} className="flex items-center justify-between p-2 bg-white rounded-md border shadow-sm">
-                    <p className="font-medium text-gray-800 truncate">
-                      {loc.name} <span className="text-sm text-gray-500">({loc.birds.length} birds)</span>
-                    </p>
+                    <div className="flex-1 min-w-0 mr-2">
+                      <p className="font-medium text-gray-800 truncate">{loc.name}</p>
+                      <p className="text-xs text-gray-500 flex items-center">
+                        <span>{loc.birds.length} birds</span>
+                        <span className="mx-1">•</span>
+                        <Trophy className="h-3 w-3 text-yellow-600 mr-1" />
+                        <span className="font-semibold text-yellow-700">{loc.highScore || 0}</span>
+                      </p>
+                    </div>
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleLoadList(loc.name)}
@@ -612,6 +644,9 @@ export default function App() {
     if (!quizQuestion) return renderLoading();
     const { bird, options } = quizQuestion;
 
+    const currentLoc = savedLocations.find(l => l.name === currentListName);
+    const record = currentLoc ? currentLoc.highScore : 0;
+
     return (
       <div className="p-4 md:p-8 max-w-6xl mx-auto">
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Which bird is this?</h2>
@@ -636,6 +671,19 @@ export default function App() {
           
           {/* RIGHT: OPTIONS & FEEDBACK */}
           <div className="w-full lg:w-2/5 flex flex-col space-y-4">
+            
+            {/* HEADS-UP DISPLAY (HUD) */}
+            <div className="flex justify-between mb-2 px-2">
+               <div className="flex items-center text-orange-500 font-bold text-lg animate-in fade-in zoom-in duration-300" key={currentStreak}>
+                  <Flame className="h-6 w-6 mr-1 fill-orange-500" />
+                  {currentStreak}
+               </div>
+               <div className="flex items-center text-yellow-600 font-bold text-lg">
+                  <Trophy className="h-6 w-6 mr-1 fill-yellow-500" />
+                  {record}
+               </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-3">
               {options.map((option: string) => {
                 const isCorrect = option === bird.name;
