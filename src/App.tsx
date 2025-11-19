@@ -213,7 +213,7 @@ export default function App() {
   };
 
   // --- QUIZ LOGIC ---
-  const generatePhotoQuizQuestion = useCallback(() => {
+  const generateQuizQuestion = useCallback((type: 'photo' | 'sound') => {
     if (birds.length < 2) {
       setError("You need at least 2 birds to start a quiz.");
       setAppState('manage');
@@ -225,8 +225,13 @@ export default function App() {
     const correctBird = birds[Math.floor(Math.random() * birds.length)];
     const correctName = correctBird.preferred_common_name || correctBird.name;
     const correctLastName = getLastName(correctName);
-    // Note: Storing scientific name in question object for the Xeno link
-    const scientificName = correctBird.name; 
+    const scientificName = correctBird.name;
+    
+    let commonName = correctBird.preferred_common_name;
+    if (commonName) {
+      if (commonName.includes('(')) commonName = commonName.split('(')[0];
+      commonName = commonName.replace(/-/g, ' ').trim();
+    }
 
     const otherBirds = birds.filter(b => b.id !== correctBird.id);
     const smartMatches = otherBirds.filter(b => {
@@ -256,7 +261,8 @@ export default function App() {
       bird: {
         name: correctName,
         url: correctBird.default_photo?.medium_url,
-        scientificName: scientificName
+        scientificName: scientificName,
+        commonName: commonName
       },
       options: finalOptions
     });
@@ -266,10 +272,10 @@ export default function App() {
     if (birds.length < 2) return;
     setError(null);
     setAppState('photoQuiz');
-    generatePhotoQuizQuestion();
+    generateQuizQuestion('photo');
   };
 
-  const handlePhotoAnswerSelect = (optionName: string) => {
+  const handleAnswerSelect = (optionName: string) => {
     if (feedback) return;
     setSelectedAnswer(optionName);
     
@@ -592,6 +598,7 @@ export default function App() {
     const record = currentLoc ? currentLoc.highScore : 0;
     
     // Generate Xeno-Canto Link
+    // Use scientific name for best results
     const searchQuery = bird.scientificName || bird.name;
     const xenoCantoLink = `https://xeno-canto.org/explore?query=${encodeURIComponent(searchQuery)}`;
 
@@ -642,7 +649,7 @@ export default function App() {
                   buttonClass += "bg-white hover:bg-blue-50 text-gray-800 border-gray-200 hover:border-blue-500 cursor-pointer";
                 }
                 return (
-                  <button key={option} onClick={() => handlePhotoAnswerSelect(option)} disabled={!!feedback} className={buttonClass}>
+                  <button key={option} onClick={() => handleAnswerSelect(option)} disabled={!!feedback} className={buttonClass}>
                     {option}
                   </button>
                 );
@@ -662,7 +669,6 @@ export default function App() {
                     <h3 className="text-2xl font-bold">Incorrect</h3>
                   </div>
                 )}
-                <p className="text-center text-gray-600 mb-4">It was a <span className="font-bold">{bird.name}</span></p>
                 
                 {/* NEW: Listen on Xeno-Canto Button */}
                 <a 
@@ -676,7 +682,7 @@ export default function App() {
                 </a>
 
                 <button
-                  onClick={generatePhotoQuizQuestion}
+                  onClick={() => generateQuizQuestion('photo')}
                   className="w-full p-4 bg-blue-600 text-white rounded-lg font-bold text-xl hover:bg-blue-700 transition-colors shadow-lg"
                 >
                   Next Question
