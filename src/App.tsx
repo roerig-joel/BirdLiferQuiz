@@ -353,7 +353,7 @@ export default function App() {
               <button
                 type="submit"
                 disabled={isSearching}
-                className="flex items-center justify-center p-2 px-4 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="flex items-center justify-center py-2 px-4 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
                 {isSearching ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
                 <span className="ml-2">Search for {searchQuery.split('\n').filter(Boolean).length || 0} birds</span>
@@ -509,7 +509,7 @@ export default function App() {
               <button
                 type="submit"
                 disabled={birds.length === 0}
-                className="py-1 px-3 bg-yellow-600 text-white rounded-md font-semibold hover:bg-yellow-700 transition-colors disabled:opacity-50 flex-shrink-0"
+                className="flex items-center justify-center py-2 px-4 bg-yellow-600 text-white rounded-md font-semibold hover:bg-yellow-700 transition-colors disabled:opacity-50 flex-shrink-0"
               >
                 <Plus className="h-5 w-5 mr-1" />
                 Save Current List ({birds.length})
