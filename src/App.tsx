@@ -611,7 +611,7 @@ export default function App() {
 
     return (
       <div className="p-4 md:p-8 max-w-2xl mx-auto">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">Who's this bird?</h2>
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">Which bird is this?</h2>
         
         <div className="w-full h-64 md:h-96 mb-6 bg-gray-200 rounded-lg shadow-lg overflow-hidden flex items-center justify-center">
           {bird.url ? (
