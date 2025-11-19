@@ -190,7 +190,6 @@ export default function App() {
     });
 
     setSearchResults([]);
-    // Removed success notification
   };
 
   const handleDeleteBird = (birdId: any) => {
@@ -206,7 +205,6 @@ export default function App() {
     if (window.confirm("Are you sure you want to REMOVE ALL birds from your current list? This cannot be undone.")) {
       setBirds([]);
       setCurrentListName("My List"); 
-      // Removed success notification
     }
   };
 
@@ -232,7 +230,6 @@ export default function App() {
     setBirds([]);
     setSearchQuery('');
     setCurrentListName(trimmedName); 
-    // Removed success notification
   };
 
   const handleLoadList = (locationName: string) => {
@@ -241,7 +238,6 @@ export default function App() {
       setBirds([...location.birds]);
       setCurrentListName(locationName);
       setAppState('manage');
-      // Removed success notification
     }
   };
 
@@ -249,7 +245,6 @@ export default function App() {
     if (window.confirm(`Are you sure you want to delete the list for "${locationName}"?`)) {
       setSavedLocations(prev => prev.filter(loc => loc.name !== locationName));
       if (currentListName === locationName) setCurrentListName("My List");
-      // Removed success notification
     }
   };
 
@@ -514,7 +509,7 @@ export default function App() {
               <button
                 type="submit"
                 disabled={birds.length === 0}
-                className="p-2 px-4 bg-yellow-600 text-white rounded-md font-semibold hover:bg-yellow-700 transition-colors disabled:opacity-50 flex-shrink-0"
+                className="py-1 px-3 bg-yellow-600 text-white rounded-md font-semibold hover:bg-yellow-700 transition-colors disabled:opacity-50 flex-shrink-0"
               >
                 <Plus className="h-5 w-5 mr-1" />
                 Save Current List ({birds.length})
