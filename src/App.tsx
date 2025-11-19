@@ -15,7 +15,7 @@ export default function App() {
     }
   });
 
-  // NEW: Track the name of the currently active list
+  // Track the name of the currently active list
   const [currentListName, setCurrentListName] = useState<string>(() => {
     return localStorage.getItem('birdQuizCurrentListName') || 'My List';
   });
@@ -190,7 +190,7 @@ export default function App() {
     });
 
     setSearchResults([]);
-    setError(`Successfully added ${newBirds.length} birds to your list.`);
+    // Removed success notification
   };
 
   const handleDeleteBird = (birdId: any) => {
@@ -205,8 +205,8 @@ export default function App() {
     if (birds.length === 0) return;
     if (window.confirm("Are you sure you want to REMOVE ALL birds from your current list? This cannot be undone.")) {
       setBirds([]);
-      setCurrentListName("My List"); // Reset name on clear
-      setError("Current list cleared.");
+      setCurrentListName("My List"); 
+      // Removed success notification
     }
   };
 
@@ -231,17 +231,17 @@ export default function App() {
     setSavedLocations(prev => [...prev, newLocation].sort((a, b) => a.name.localeCompare(b.name)));
     setBirds([]);
     setSearchQuery('');
-    setCurrentListName(trimmedName); // Update active name
-    setError(`List "${trimmedName}" saved successfully! Your current list is now empty.`);
+    setCurrentListName(trimmedName); 
+    // Removed success notification
   };
 
   const handleLoadList = (locationName: string) => {
     const location = savedLocations.find(loc => loc.name === locationName);
     if (location) {
       setBirds([...location.birds]);
-      setCurrentListName(locationName); // Update active name
+      setCurrentListName(locationName);
       setAppState('manage');
-      setError(`List "${locationName}" loaded. (${location.birds.length} birds)`);
+      // Removed success notification
     }
   };
 
@@ -249,7 +249,7 @@ export default function App() {
     if (window.confirm(`Are you sure you want to delete the list for "${locationName}"?`)) {
       setSavedLocations(prev => prev.filter(loc => loc.name !== locationName));
       if (currentListName === locationName) setCurrentListName("My List");
-      setError(`List "${locationName}" deleted.`);
+      // Removed success notification
     }
   };
 
@@ -745,24 +745,12 @@ export default function App() {
       
       {error && (
         <div 
-          className={`p-4 m-4 rounded-md border-l-4 transition-colors ${
-            error.includes("saved successfully") || 
-            error.includes("loaded") || 
-            error.includes("deleted") ||
-            error.includes("cleared") ||
-            error.includes("Successfully")
-              ? 'bg-green-100 border-green-500 text-green-700' 
-              : 'bg-red-100 border-red-500 text-red-700'
-          }`}
+          className={`p-4 m-4 rounded-md border-l-4 transition-colors bg-red-100 border-red-500 text-red-700`}
           role="alert"
         >
-          <p className="font-bold">
-            {error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") || error.includes("cleared") || error.includes("Successfully") ? 'Status' : 'Error'}
-          </p>
+          <p className="font-bold">Error</p>
           <p>{error}</p>
-          <button onClick={() => setError(null)} className={`mt-2 text-sm font-semibold ${
-            error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") || error.includes("cleared") || error.includes("Successfully") ? 'text-green-600' : 'text-red-600'
-          }`}>
+          <button onClick={() => setError(null)} className={`mt-2 text-sm font-semibold text-red-600`}>
             Dismiss
           </button>
         </div>
