@@ -614,7 +614,7 @@ export default function App() {
 
     return (
       <div className="p-4 md:p-8 max-w-6xl mx-auto">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Who's this bird?</h2>
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Which bird is this?</h2>
         
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* LEFT: IMAGE */}
