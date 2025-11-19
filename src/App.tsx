@@ -39,7 +39,8 @@ export default function App() {
   const [quizQuestion, setQuizQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  
+  const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 });
+
   // --- Random Bird Widget State ---
   const [randomBird, setRandomBird] = useState<any>(null);
 
@@ -94,7 +95,7 @@ export default function App() {
 
   // --- API & LIST FUNCTIONS ---
   
-  const handleSearch = async (e: React.FormEvent) => {
+const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const birdNames = searchQuery.split('\n').filter(name => name.trim() !== '');
     if (birdNames.length === 0) return;
@@ -102,18 +103,24 @@ export default function App() {
     setIsSearching(true);
     setSearchResults([]);
     setError(null);
+    setSearchProgress({ current: 0, total: birdNames.length });
 
-    // A temporary array to hold results as we find them
-    const accumulatedResults: any[] = [];
-
-    // Helper function to search for a SINGLE bird
-    const fetchBird = async (name: string) => {
+    // Helper: Search for a SINGLE bird with RETRY logic
+    const fetchBird = async (name: string, retryCount = 0): Promise<any> => {
       try {
-        // taxon_id=3 forces search to only look for BIRDS
         const response = await fetch(`https://api.inaturalist.org/v1/taxa/autocomplete?q=${encodeURIComponent(name.trim())}&taxon_id=3`);
-        if (!response.ok) throw new Error(`API failed for ${name}`);
-        const data = await response.json();
         
+        // If we get rate limited (429) or a server error (500+), wait and retry
+        if (!response.ok) {
+           if (retryCount < 3) {
+             // Wait 2 seconds, then try again (exponential backoff)
+             await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
+             return fetchBird(name, retryCount + 1);
+           }
+           throw new Error(`API failed for ${name}`);
+        }
+
+        const data = await response.json();
         const topHit = data.results.find(
           (r: any) => r.rank === 'species' && 
           r.default_photo &&
@@ -128,40 +135,27 @@ export default function App() {
     };
 
     // --- BATCHING LOGIC ---
-    // We process 5 birds at a time to avoid overwhelming the API
-    const BATCH_SIZE = 5;
+    const BATCH_SIZE = 3; // Reduced to 3 for stability
     
     for (let i = 0; i < birdNames.length; i += BATCH_SIZE) {
-      // Get the next chunk of names
       const batch = birdNames.slice(i, i + BATCH_SIZE);
-      
-      // Create promises for this batch only
       const batchPromises = batch.map(name => fetchBird(name));
-      
-      // Wait for this batch to finish before moving to the next
       const batchResults = await Promise.allSettled(batchPromises);
       
-      // Process results
       const successfulBatch = batchResults
         .filter((res): res is PromiseFulfilledResult<any> => res.status === 'fulfilled')
         .filter(res => res.value)
         .map(res => res.value);
         
-      // Add to our master list
-      accumulatedResults.push(...successfulBatch);
-      
-      // Optional: Update the UI progressively so the user sees birds appearing
       setSearchResults(prev => [...prev, ...successfulBatch]);
       
-      // Small pause between batches to be polite to the API (300ms)
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Update Progress Counter
+      setSearchProgress(prev => ({ ...prev, current: Math.min(i + BATCH_SIZE, birdNames.length) }));
+      
+      // Polite delay between batches (1 second)
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    // Final check after all batches are done
-    if (accumulatedResults.length === 0) {
-      setError("No valid bird species found. Check your spelling or try different names.");
-    }
-    
     setIsSearching(false);
   };
 
@@ -347,9 +341,9 @@ export default function App() {
             </div>
           </form>
 
-          {/* Search Results Section */}
+         {/* Search Results Section */}
           {isSearching && (
-            renderLoading("Searching iNaturalist for birds...")
+            renderLoading(`Searching... ${searchProgress.current} / ${searchProgress.total} birds checked`)
           )}
           {searchResults.length > 0 && (
             <div className="mb-6">
