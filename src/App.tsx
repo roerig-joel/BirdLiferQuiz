@@ -230,10 +230,12 @@ export default function App() {
     const correctBird = birds[Math.floor(Math.random() * birds.length)];
     const correctName = correctBird.preferred_common_name || correctBird.name;
     const correctLastName = getLastName(correctName);
-    const scientificName = correctBird.name;
     
-    // Use preferred common name if available, else fall back to scientific (stripped of parentheses if needed)
-    const commonName = correctBird.preferred_common_name || scientificName; 
+    // Clean common name (remove parens) for better search results
+    let commonName = correctBird.preferred_common_name;
+    if (commonName && commonName.includes('(')) {
+      commonName = commonName.split('(')[0].trim();
+    }
 
     const otherBirds = birds.filter(b => b.id !== correctBird.id);
     const smartMatches = otherBirds.filter(b => {
@@ -263,59 +265,52 @@ export default function App() {
       bird: {
         name: correctName,
         url: correctBird.default_photo?.medium_url,
-        scientificName: scientificName,
-        commonName: commonName
+        scientificName: correctBird.name 
       },
       options: finalOptions
     });
 
-    // --- MULTI-SOURCE AUDIO ENGINE ---
+    // --- MULTI-SOURCE AUDIO ENGINE (Frontend Only) ---
     if (type === 'sound') {
       setIsAudioLoading(true);
       
-      // Helper to process Xeno-Canto results
-      const processXenoData = (data: any) => {
-         let recs = data.recordings || [];
-         // Loosen filter: Allow A, B, C quality to get more hits
-         let best = recs.filter((r: any) => ['A', 'B', 'C'].includes(r.q));
-         if (best.length === 0) best = recs;
-
-         if (best.length > 0) {
-           let fileUrl = best[0].file;
-           if (fileUrl.startsWith('http://')) fileUrl = fileUrl.replace('http://', 'https://');
-           return fileUrl;
-         }
-         return null;
-      };
-
       const tryXenoWithQuery = async (query: string) => {
          try {
             const proxyUrl = "https://corsproxy.io/?";
             const xenoUrl = `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(query)}`;
             const res = await fetch(proxyUrl + encodeURIComponent(xenoUrl));
             const data = await res.json();
-            return processXenoData(data);
+            
+            let recs = data.recordings || [];
+            // Relaxed Quality Filter: A, B, C, or no rating
+            let best = recs.filter((r: any) => ['A', 'B', 'C'].includes(r.q));
+            if (best.length === 0) best = recs;
+
+            if (best.length > 0) {
+               let fileUrl = best[0].file;
+               if (fileUrl.startsWith('http://')) fileUrl = fileUrl.replace('http://', 'https://');
+               return fileUrl;
+            }
          } catch (e) {
             return null;
          }
       };
 
-      // STRATEGY: 1. Scientific -> 2. Common Name -> 3. Wikimedia Backup
+      // STRATEGY: 1. Scientific -> 2. Common Name -> 3. Wikimedia
       const findAudio = async () => {
-        // 1. Try Scientific Name (Most Precise)
-        let url = await tryXenoWithQuery(scientificName);
+        // 1. Try Scientific Name
+        let url = await tryXenoWithQuery(correctBird.name);
         
         // 2. If failed, Try Common Name (Fuzzy Match)
         if (!url && commonName) {
-           console.log(`Scientific failed for ${scientificName}, trying common: ${commonName}`);
+           // console.log("Trying common name: " + commonName);
            url = await tryXenoWithQuery(commonName);
         }
 
         // 3. If failed, Try Wikimedia
         if (!url) {
-           console.log("Xeno failed, trying Wikimedia...");
            try {
-            const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(scientificName + " audio")}&srnamespace=6&format=json&origin=*`;
+            const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(correctBird.name + " audio")}&srnamespace=6&format=json&origin=*`;
             const res = await fetch(wikiUrl);
             const data = await res.json();
             if (data.query && data.query.search && data.query.search.length > 0) {
@@ -684,7 +679,6 @@ export default function App() {
         
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           
-          {/* LEFT: MEDIA (Image or Sound Placeholder) */}
           <div className="w-full lg:w-3/5 h-[400px] lg:h-[600px] bg-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col items-center justify-center relative">
             
             {type === 'photo' ? (
@@ -717,7 +711,6 @@ export default function App() {
             )}
           </div>
           
-          {/* RIGHT: OPTIONS & FEEDBACK */}
           <div className="w-full lg:w-2/5 flex flex-col space-y-4">
             <div className="flex justify-between mb-2 px-2">
                <div className="flex items-center text-orange-500 font-bold text-lg" key={currentStreak}>
