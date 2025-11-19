@@ -23,11 +23,20 @@ export default async function handler(request, response) {
       recordings = fallbackData.recordings || [];
     }
 
-    // 3. Return the best recording found
+    // 3. Still nothing? Try just the name (any quality)
+    if (recordings.length === 0) {
+       const lastResortResponse = await fetch(
+        `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(species)}`
+      );
+      const lastResortData = await lastResortResponse.json();
+      recordings = lastResortData.recordings || [];
+    }
+
+    // 4. Return the best recording found
     const topRecording = recordings.slice(0, 1).map(rec => ({
       id: rec.id,
       url: rec.file, 
-      type: rec.type, // e.g. "song", "call"
+      type: rec.type,
       recordist: rec.rec,
       location: rec.loc,
       country: rec.cnt
