@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  Bird, Plus, Trash2, Brain, Loader2, List, Search, CheckCircle, Ban, MapPin, Trophy, Flame 
+  Bird, Plus, Trash2, Brain, Loader2, List, Search, CheckCircle, Ban, MapPin, Trophy, Flame, Music, Volume2 
 } from 'lucide-react';
 
 export default function App() {
@@ -20,10 +20,10 @@ export default function App() {
     return localStorage.getItem('birdQuizCurrentListName') || 'My List';
   });
   
-  const [appState, setAppState] = useState('manage'); // 'manage', 'photoQuiz'
+  const [appState, setAppState] = useState('manage'); // 'manage', 'photoQuiz', 'soundQuiz'
   const [error, setError] = useState<string | null>(null);
 
-  // --- Saved Locations State (With High Scores) ---
+  // --- Saved Locations State ---
   const [savedLocations, setSavedLocations] = useState<{ name: string; birds: any[]; highScore: number }[]>(() => {
     try {
       const saved = localStorage.getItem("birdQuizLocations");
@@ -50,6 +50,11 @@ export default function App() {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [currentStreak, setCurrentStreak] = useState(0); // Streak Counter
+  
+  // --- Sound Quiz Specific State ---
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
   
   // --- Random Bird Widget State ---
   const [randomBird, setRandomBird] = useState<any>(null);
@@ -257,7 +262,7 @@ export default function App() {
   };
 
   // --- QUIZ LOGIC ---
-  const generatePhotoQuizQuestion = useCallback(() => {
+  const generateQuizQuestion = useCallback((type: 'photo' | 'sound') => {
     if (birds.length < 2) {
       setError("You need at least 2 birds to start a quiz.");
       setAppState('manage');
@@ -265,6 +270,7 @@ export default function App() {
     }
     setSelectedAnswer(null);
     setFeedback(null);
+    setAudioUrl(null); // Reset audio
 
     const correctBird = birds[Math.floor(Math.random() * birds.length)];
     const correctName = correctBird.preferred_common_name || correctBird.name;
@@ -308,31 +314,56 @@ export default function App() {
       },
       options: finalOptions
     });
+
+    // If Sound Quiz, fetch audio immediately
+    if (type === 'sound') {
+      setIsAudioLoading(true);
+      // Call our backend proxy
+      fetch(`/api/proxy-xeno?species=${encodeURIComponent(correctBird.name)}`)
+        .then(res => res.json())
+        .then(data => {
+           if (data.recordings && data.recordings.length > 0) {
+             setAudioUrl(data.recordings[0].url);
+           } else {
+             // Optional: Handle "No sound found" gracefully
+             // For now, the user will see "Sound not available" in the UI
+           }
+        })
+        .catch(err => console.error("Error fetching sound:", err))
+        .finally(() => setIsAudioLoading(false));
+    }
   }, [birds]);
 
   const startPhotoQuiz = () => {
-    if (birds.length < 2) {
-      setError("Please add at least 2 birds to start a photo quiz.");
-      return;
-    }
+    if (birds.length < 2) return;
     setError(null);
     setAppState('photoQuiz');
-    generatePhotoQuizQuestion();
+    generateQuizQuestion('photo');
   };
 
-  const handlePhotoAnswerSelect = (optionName: string) => {
+  const startSoundQuiz = () => {
+    if (birds.length < 2) return;
+    setError(null);
+    setAppState('soundQuiz');
+    generateQuizQuestion('sound');
+  };
+
+  const handleAnswerSelect = (optionName: string) => {
     if (feedback) return;
     setSelectedAnswer(optionName);
     
     const isCorrect = optionName === quizQuestion.bird.name;
     
+    // If Photo quiz, reuse same logic. If Sound quiz, we reveal the photo.
+    // Since 'quizQuestion' logic is shared, 'generateQuizQuestion' handles the type.
+    // But we need to know CURRENT type to Restart correctly.
+    // Simpler: We just call the generic generateQuizQuestion again with current appState
+    
     if (isCorrect) {
       setFeedback('correct');
-      // Increment Streak
       const newStreak = currentStreak + 1;
       setCurrentStreak(newStreak);
 
-      // Update High Score if applicable
       if (currentListName !== "My List") {
         setSavedLocations(prev => prev.map(loc => {
           if (loc.name === currentListName) {
@@ -341,10 +372,9 @@ export default function App() {
           return loc;
         }));
       }
-
     } else {
       setFeedback('incorrect');
-      setCurrentStreak(0); // Reset streak
+      setCurrentStreak(0);
     }
   };
 
@@ -640,47 +670,64 @@ export default function App() {
     </div>
   );
 
-  const renderPhotoQuiz = () => {
+  const renderQuizContent = (type: 'photo' | 'sound') => {
     if (!quizQuestion) return renderLoading();
     const { bird, options } = quizQuestion;
-
     const currentLoc = savedLocations.find(l => l.name === currentListName);
     const record = currentLoc ? currentLoc.highScore : 0;
 
     return (
       <div className="p-4 md:p-8 max-w-6xl mx-auto">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Which bird is this?</h2>
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+          {type === 'photo' ? "Which bird is this?" : "Who is making this sound?"}
+        </h2>
         
         <div className="flex flex-col lg:flex-row gap-8 items-start">
-          {/* LEFT: IMAGE */}
-          <div className="w-full lg:w-3/5 h-[400px] lg:h-[600px] bg-gray-200 rounded-lg shadow-lg overflow-hidden flex items-center justify-center">
-            {bird.url ? (
-              <img
-                src={bird.url}
-                alt="Bird for identification"
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-contain"
-              />
+          
+          {/* LEFT: MEDIA (Image or Sound Placeholder) */}
+          <div className="w-full lg:w-3/5 h-[400px] lg:h-[600px] bg-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col items-center justify-center relative">
+            
+            {type === 'photo' ? (
+               /* PHOTO MODE */
+               bird.url ? (
+                <img src={bird.url} alt="Bird" className="w-full h-full object-contain" />
+              ) : (
+                <div className="flex flex-col items-center text-gray-500"><Ban className="h-16 w-16"/><p>No image</p></div>
+              )
             ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
-                <Ban className="h-16 w-16" />
-                <p className="mt-2 text-center">No image available for this bird.</p>
-              </div>
+               /* SOUND MODE */
+               <div className="flex flex-col items-center justify-center w-full h-full bg-gray-800 text-white p-6 text-center">
+                 {/* Show Photo ONLY if answered correctly */}
+                 {feedback === 'correct' ? (
+                    <img src={bird.url} alt="Bird" className="absolute inset-0 w-full h-full object-contain bg-gray-200 animate-in fade-in duration-700" />
+                 ) : (
+                    <Music className="h-32 w-32 mb-6 text-purple-400 animate-pulse" />
+                 )}
+
+                 {/* Audio Player Controls (Always visible on top) */}
+                 <div className="z-10 bg-white/90 p-4 rounded-xl shadow-xl w-full max-w-md backdrop-blur-sm text-gray-800">
+                    {isAudioLoading ? (
+                      <div className="flex items-center justify-center text-gray-600"><Loader2 className="h-6 w-6 animate-spin mr-2"/>Loading Sound...</div>
+                    ) : audioUrl ? (
+                      <audio ref={audioRef} controls autoPlay className="w-full" src={audioUrl} />
+                    ) : (
+                       <div className="text-red-500 font-semibold">Sound not available for this bird.</div>
+                    )}
+                 </div>
+               </div>
             )}
           </div>
           
           {/* RIGHT: OPTIONS & FEEDBACK */}
           <div className="w-full lg:w-2/5 flex flex-col space-y-4">
             
-            {/* HEADS-UP DISPLAY (HUD) */}
+            {/* HUD */}
             <div className="flex justify-between mb-2 px-2">
-               <div className="flex items-center text-orange-500 font-bold text-lg animate-in fade-in zoom-in duration-300" key={currentStreak}>
-                  <Flame className="h-6 w-6 mr-1 fill-orange-500" />
-                  {currentStreak}
+               <div className="flex items-center text-orange-500 font-bold text-lg" key={currentStreak}>
+                  <Flame className="h-6 w-6 mr-1 fill-orange-500" /> {currentStreak}
                </div>
                <div className="flex items-center text-yellow-600 font-bold text-lg">
-                  <Trophy className="h-6 w-6 mr-1 fill-yellow-500" />
-                  {record}
+                  <Trophy className="h-6 w-6 mr-1 fill-yellow-500" /> {record}
                </div>
             </div>
 
@@ -698,14 +745,13 @@ export default function App() {
                   buttonClass += "bg-white hover:bg-blue-50 text-gray-800 border-gray-200 hover:border-blue-500 cursor-pointer";
                 }
                 return (
-                  <button key={option} onClick={() => handlePhotoAnswerSelect(option)} disabled={!!feedback} className={buttonClass}>
+                  <button key={option} onClick={() => handleAnswerSelect(option)} disabled={!!feedback} className={buttonClass}>
                     {option}
                   </button>
                 );
               })}
             </div>
             
-            {/* Feedback Section - Sticks to the right column now */}
             {feedback && (
               <div className="mt-4 p-6 bg-white rounded-lg shadow-md border-2 border-gray-100 animate-in fade-in slide-in-from-top-4">
                 {feedback === 'correct' ? (
@@ -721,7 +767,7 @@ export default function App() {
                 )}
                 <p className="text-center text-gray-600 mb-4">It was a <span className="font-bold">{bird.name}</span></p>
                 <button
-                  onClick={generatePhotoQuizQuestion}
+                  onClick={() => generateQuizQuestion(type)}
                   className="w-full p-4 bg-blue-600 text-white rounded-lg font-bold text-xl hover:bg-blue-700 transition-colors shadow-lg"
                 >
                   Next Question
@@ -737,7 +783,10 @@ export default function App() {
   // --- Main Render ---
   const renderContent = () => {
     if (appState === 'photoQuiz') {
-      return renderPhotoQuiz();
+      return renderQuizContent('photo');
+    }
+    if (appState === 'soundQuiz') {
+      return renderQuizContent('sound');
     }
     return renderManageBirds();
   };
@@ -746,47 +795,33 @@ export default function App() {
     <div className="w-full h-screen bg-gray-100 font-inter antialiased">
       <header className="bg-white shadow-md">
         <div className="container mx-auto px-4 py-4 flex flex-wrap justify-between items-center">
-          <button
-            onClick={() => {
-              setFeedback(null);
-              setAppState('manage');
-            }}
-            className="flex items-center space-x-2 mb-2 sm:mb-0 hover:opacity-75 transition-opacity"
-          >
+          <button onClick={() => { setFeedback(null); setAppState('manage'); }} className="flex items-center space-x-2 mb-2 sm:mb-0 hover:opacity-75 transition-opacity">
             <Bird className="h-8 w-8 text-blue-600" />
             <h1 className="text-xl md:text-2xl font-bold text-gray-800">Quiz My Lifers</h1>
           </button>
 
           <div className="flex space-x-2 items-center">
-            {/* NEW: Current List Badge */}
             <div className="flex items-center mr-2 sm:mr-4 text-blue-800 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 text-sm font-medium whitespace-nowrap max-w-[150px] sm:max-w-[200px] overflow-hidden text-ellipsis">
               <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
               <span className="truncate">{currentListName}</span>
             </div>
 
-            <button
-              onClick={startPhotoQuiz}
-              disabled={appState === 'photoQuiz' || birds.length < 2}
-              className={`flex items-center px-4 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed`}
-              title="Start Photo Quiz (All)"
-            >
-              <Brain className="h-5 w-5 sm:mr-2" />
-              <span className="hidden sm:inline">Quiz me now!</span>
+            <button onClick={startPhotoQuiz} disabled={appState === 'photoQuiz' || birds.length < 2} className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50">
+              <Brain className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Photo Quiz</span>
+            </button>
+
+            <button onClick={startSoundQuiz} disabled={appState === 'soundQuiz' || birds.length < 2} className="flex items-center px-3 py-2 bg-purple-600 text-white rounded-md font-semibold hover:bg-purple-700 transition-colors shadow-sm disabled:opacity-50">
+              <Volume2 className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Sound Quiz</span>
             </button>
           </div>
         </div>
       </header>
       
       {error && (
-        <div 
-          className={`p-4 m-4 rounded-md border-l-4 transition-colors bg-red-100 border-red-500 text-red-700`}
-          role="alert"
-        >
+        <div className={`p-4 m-4 rounded-md border-l-4 transition-colors bg-red-100 border-red-500 text-red-700`} role="alert">
           <p className="font-bold">Error</p>
           <p>{error}</p>
-          <button onClick={() => setError(null)} className={`mt-2 text-sm font-semibold text-red-600`}>
-            Dismiss
-          </button>
+          <button onClick={() => setError(null)} className={`mt-2 text-sm font-semibold text-red-600`}>Dismiss</button>
         </div>
       )}
 
