@@ -270,7 +270,7 @@ export default function App() {
     }
     setSelectedAnswer(null);
     setFeedback(null);
-    setAudioUrl(null); // Reset audio
+    setAudioUrl(null);
 
     const correctBird = birds[Math.floor(Math.random() * birds.length)];
     const correctName = correctBird.preferred_common_name || correctBird.name;
@@ -315,18 +315,31 @@ export default function App() {
       options: finalOptions
     });
 
-    // If Sound Quiz, fetch audio immediately
+    // --- FRONTEND PROXY AUDIO LOGIC ---
     if (type === 'sound') {
       setIsAudioLoading(true);
-      // Call our backend proxy
-      fetch(`/api/proxy-xeno?species=${encodeURIComponent(correctBird.name)}`)
+      
+      // Use CORSProxy.io to bypass security blocks
+      const proxyUrl = "https://corsproxy.io/?";
+      const xenoUrl = `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(correctBird.name)}`;
+      
+      fetch(proxyUrl + encodeURIComponent(xenoUrl))
         .then(res => res.json())
         .then(data => {
-           if (data.recordings && data.recordings.length > 0) {
-             setAudioUrl(data.recordings[0].url);
+           // Filter for A or B quality
+           let recs = data.recordings || [];
+           let best = recs.filter((r: any) => r.q === 'A' || r.q === 'B');
+           if (best.length === 0) best = recs;
+
+           if (best.length > 0) {
+             // FORCE HTTPS
+             let fileUrl = best[0].file;
+             if (fileUrl.startsWith('http://')) {
+               fileUrl = fileUrl.replace('http://', 'https://');
+             }
+             setAudioUrl(fileUrl);
            } else {
-             // Optional: Handle "No sound found" gracefully
-             // For now, the user will see "Sound not available" in the UI
+             // No recordings found
            }
         })
         .catch(err => console.error("Error fetching sound:", err))
@@ -353,11 +366,6 @@ export default function App() {
     setSelectedAnswer(optionName);
     
     const isCorrect = optionName === quizQuestion.bird.name;
-    
-    // If Photo quiz, reuse same logic. If Sound quiz, we reveal the photo.
-    // Since 'quizQuestion' logic is shared, 'generateQuizQuestion' handles the type.
-    // But we need to know CURRENT type to Restart correctly.
-    // Simpler: We just call the generic generateQuizQuestion again with current appState
     
     if (isCorrect) {
       setFeedback('correct');
@@ -684,7 +692,6 @@ export default function App() {
         
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           
-          {/* LEFT: MEDIA (Image or Sound Placeholder) */}
           <div className="w-full lg:w-3/5 h-[400px] lg:h-[600px] bg-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col items-center justify-center relative">
             
             {type === 'photo' ? (
@@ -704,7 +711,6 @@ export default function App() {
                     <Music className="h-32 w-32 mb-6 text-purple-400 animate-pulse" />
                  )}
 
-                 {/* Audio Player Controls (Always visible on top) */}
                  <div className="z-10 bg-white/90 p-4 rounded-xl shadow-xl w-full max-w-md backdrop-blur-sm text-gray-800">
                     {isAudioLoading ? (
                       <div className="flex items-center justify-center text-gray-600"><Loader2 className="h-6 w-6 animate-spin mr-2"/>Loading Sound...</div>
@@ -718,10 +724,7 @@ export default function App() {
             )}
           </div>
           
-          {/* RIGHT: OPTIONS & FEEDBACK */}
           <div className="w-full lg:w-2/5 flex flex-col space-y-4">
-            
-            {/* HUD */}
             <div className="flex justify-between mb-2 px-2">
                <div className="flex items-center text-orange-500 font-bold text-lg" key={currentStreak}>
                   <Flame className="h-6 w-6 mr-1 fill-orange-500" /> {currentStreak}
@@ -780,7 +783,6 @@ export default function App() {
     );
   };
 
-  // --- Main Render ---
   const renderContent = () => {
     if (appState === 'photoQuiz') {
       return renderQuizContent('photo');
