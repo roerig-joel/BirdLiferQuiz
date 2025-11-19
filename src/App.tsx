@@ -217,7 +217,6 @@ export default function App() {
   };
 
   // --- QUIZ LOGIC ---
-  // IMPORTANT: This function now accepts a 'type' argument to handle both photo and sound modes
   const generateQuizQuestion = useCallback((type: 'photo' | 'sound') => {
     if (birds.length < 2) {
       setError("You need at least 2 birds to start a quiz.");
@@ -273,7 +272,7 @@ export default function App() {
       options: finalOptions
     });
 
-    // --- AUDIO ENGINE ---
+    // --- MULTI-SOURCE AUDIO ENGINE (Robust Version) ---
     if (type === 'sound') {
       setIsAudioLoading(true);
       
@@ -302,6 +301,7 @@ export default function App() {
           const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(scientificName + " audio")}&srnamespace=6&format=json&origin=*`;
           const res = await fetch(wikiUrl);
           const data = await res.json();
+          
           if (data.query && data.query.search && data.query.search.length > 0) {
              const filename = data.query.search[0].title;
              const fileInfoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(filename)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
@@ -317,19 +317,37 @@ export default function App() {
         return null;
       };
 
-      // PARALLEL EXECUTION
-      Promise.any([
-        tryXenoWithQuery(scientificName).then(url => url ? Promise.resolve(url) : Promise.reject()),
-        (commonName && commonName !== scientificName) ? tryXenoWithQuery(commonName).then(url => url ? Promise.resolve(url) : Promise.reject()) : Promise.reject(),
-        tryWikimedia().then(url => url ? Promise.resolve(url) : Promise.reject())
-      ])
-      .then(url => {
-        setAudioUrl(url);
-      })
-      .catch(() => { })
-      .finally(() => {
+      // SEQUENTIAL EXECUTION (Fixes TS2550 Error)
+      const findAudio = async () => {
+        // 1. Initiate all requests simultaneously for speed
+        const req1 = tryXenoWithQuery(scientificName);
+        const req2 = (commonName && commonName !== scientificName) ? tryXenoWithQuery(commonName) : Promise.resolve(null);
+        const req3 = tryWikimedia();
+
+        // 2. Check results in priority order
+        const url1 = await req1;
+        if (url1) {
+           setAudioUrl(url1);
+           setIsAudioLoading(false);
+           return;
+        }
+
+        const url2 = await req2;
+        if (url2) {
+           setAudioUrl(url2);
+           setIsAudioLoading(false);
+           return;
+        }
+
+        const url3 = await req3;
+        if (url3) {
+           setAudioUrl(url3);
+        }
+        
         setIsAudioLoading(false);
-      });
+      };
+
+      findAudio();
     }
   }, [birds]);
 
@@ -389,6 +407,7 @@ export default function App() {
         <div className="w-full md:w-2/3">
                     
           <form onSubmit={handleSearch} className="mb-6 p-4 bg-gray-50 rounded-lg shadow-md">
+            {/* PRESERVED CUSTOM TEXT: */}
             <p className="text-sm text-gray-600 mb-3"><span className="font-bold text-blue-600">Quiz My Lifers</span> lets you create photo lists of birds, so you can take quizzes and get better at identifying them. Type or paste (long) lists of bird names, add them to your list and take the quiz as many times as you want. <span className="italic">Bonus feature: save your list as a location.</span></p>
             <div className="flex flex-col space-y-3">
               <textarea
@@ -419,6 +438,7 @@ export default function App() {
                  </div>
                  <span>{searchProgress.current} / {searchProgress.total} birds checked</span>
               </div>
+              {/* The Blue Bar */}
               <div className="w-full bg-blue-200 rounded-full h-2.5">
                  <div 
                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
@@ -430,6 +450,7 @@ export default function App() {
 
           {searchResults.length > 0 && (
             <div className="mb-6">
+              {/* ADD ALL BUTTON */}
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xl font-semibold">Search Results ({searchResults.length})</h3>
                 <button 
