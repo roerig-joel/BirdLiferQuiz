@@ -33,14 +33,16 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 }); // NEW: Progress Bar State
   const [isAdding, setIsAdding] = useState<number | null>(null);
+  
+  // NEW: Search Progress State
+  const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 });
 
   // --- Quiz State ---
   const [quizQuestion, setQuizQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  
+
   // --- Random Bird Widget State ---
   const [randomBird, setRandomBird] = useState<any>(null);
 
@@ -61,7 +63,6 @@ export default function App() {
     const fetchRandomBird = async () => {
       try {
         // taxon_id=3 is strictly Class Aves (Birds)
-        // order_by=observations_count ensures we get popular birds with good photos
         const randomPage = Math.floor(Math.random() * 1000) + 1;
         const response = await fetch(
           `https://api.inaturalist.org/v1/taxa?taxon_id=3&rank=species&per_page=1&page=${randomPage}&photos=true&order_by=observations_count`
@@ -96,6 +97,7 @@ export default function App() {
 
   // --- API & LIST FUNCTIONS ---
   
+  // NEW: Batched Search Logic with Progress Bar
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const birdNames = searchQuery.split('\n').filter(name => name.trim() !== '');
@@ -123,7 +125,6 @@ export default function App() {
         }
 
         const data = await response.json();
-        
         const topHit = data.results.find(
           (r: any) => r.rank === 'species' && 
           r.default_photo &&
@@ -317,14 +318,15 @@ export default function App() {
 
   const renderManageBirds = () => (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-
+     
       <div className="flex flex-col md:flex-row gap-6">
         
         {/* === COLUMN 1: Search Section (Wider Column) === */}
         <div className="w-full md:w-2/3">
-          
+                    
           <form onSubmit={handleSearch} className="mb-6 p-4 bg-gray-50 rounded-lg shadow-md">
-            <p className="text-sm text-gray-600 mb-3">Paste bird names below, one per line.</p>
+            {/* PRESERVED CUSTOM TEXT: */}
+            <p className="text-sm text-gray-600 mb-3"><span className="font-bold text-blue-600">Quiz My Lifers</span> lets you create photo lists of birds, so you can take quizzes and get better at identifying them. Type or paste (long) lists of bird names, add them to your list and take the quiz as many times as you want. <span className="italic">Bonus feature: save your list as a location.</span></p>
             <div className="flex flex-col space-y-3">
               <textarea
                 value={searchQuery}
@@ -630,93 +632,4 @@ export default function App() {
             {feedback === 'correct' ? (
               <h3 className="text-2xl font-bold text-green-600">Correct!</h3>
             ) : (
-              <h3 className="text-2xl font-bold text-red-600">Incorrect</h3>
-            )}
-            <button
-              onClick={generatePhotoQuizQuestion}
-              className="mt-4 p-3 bg-blue-600 text-white rounded-md font-semibold text-lg hover:bg-blue-700 transition-colors"
-            >
-              Next Question
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // --- Main Render ---
-  const renderContent = () => {
-    if (appState === 'photoQuiz') {
-      return renderPhotoQuiz();
-    }
-    return renderManageBirds();
-  };
-  
-  return (
-    <div className="w-full h-screen bg-gray-100 font-inter antialiased">
-      <header className="bg-white shadow-md">
-        <div className="container mx-auto px-4 py-4 flex flex-wrap justify-between items-center">
-          <div className="flex items-center space-x-2 mb-2 sm:mb-0">
-            <Bird className="h-8 w-8 text-blue-600" />
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">Quiz My Lifers</h1>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => {
-                setFeedback(null);
-                setAppState('manage');
-              }}
-              disabled={appState === 'manage'}
-              className={`p-2 rounded-md flex items-center font-semibold transition-colors ${
-                appState === 'manage' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-200'
-              }`}
-              title="Manage List"
-            >
-              <List className="h-5 w-5 sm:mr-1" />
-              <span className="hidden sm:inline">Manage List</span>
-            </button>
-            <button
-              onClick={startPhotoQuiz}
-              disabled={appState === 'photoQuiz' || birds.length < 2}
-              className={`p-2 rounded-md flex items-center font-semibold transition-colors ${
-                appState === 'photoQuiz' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-200'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-              title="Start Photo Quiz (All)"
-            >
-              <Brain className="h-5 w-5 sm:mr-1" />
-              <span className="hidden sm:inline">Photo Quiz</span>
-            </button>
-          </div>
-        </div>
-      </header>
-      
-      {error && (
-        <div 
-          className={`p-4 m-4 rounded-md border-l-4 transition-colors ${
-            error.includes("saved successfully") || 
-            error.includes("loaded") || 
-            error.includes("deleted") ||
-            error.includes("cleared")
-              ? 'bg-green-100 border-green-500 text-green-700' 
-              : 'bg-red-100 border-red-500 text-red-700'
-          }`}
-          role="alert"
-        >
-          <p className="font-bold">
-            {error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") || error.includes("cleared") ? 'Status' : 'Error'}
-          </p>
-          <p>{error}</p>
-          <button onClick={() => setError(null)} className={`mt-2 text-sm font-semibold ${
-            error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") || error.includes("cleared") ? 'text-green-600' : 'text-red-600'
-          }`}>
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      <main className="container mx-auto px-4 py-6 h-[calc(100vh-80px)] overflow-y-auto">
-        {renderContent()}
-      </main>
-    </div>
-  );
-}
+              <h3 className="text-2xl font-bold text-red-600"></h3>
