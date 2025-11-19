@@ -509,7 +509,7 @@ export default function App() {
               <button
                 type="submit"
                 disabled={birds.length === 0}
-                className="flex items-center justify-center py-2 px-4 bg-yellow-600 text-white rounded-md font-semibold hover:bg-yellow-700 transition-colors disabled:opacity-50 flex-shrink-0"
+                className="py-1 px-3 bg-yellow-600 text-white rounded-md font-semibold hover:bg-yellow-700 transition-colors disabled:opacity-50 flex-shrink-0 flex items-center justify-center"
               >
                 <Plus className="h-5 w-5 mr-1" />
                 Save Current List ({birds.length})
@@ -698,10 +698,17 @@ export default function App() {
     <div className="w-full h-screen bg-gray-100 font-inter antialiased">
       <header className="bg-white shadow-md">
         <div className="container mx-auto px-4 py-4 flex flex-wrap justify-between items-center">
-          <div className="flex items-center space-x-2 mb-2 sm:mb-0">
+          <button
+            onClick={() => {
+              setFeedback(null);
+              setAppState('manage');
+            }}
+            className="flex items-center space-x-2 mb-2 sm:mb-0 hover:opacity-75 transition-opacity"
+          >
             <Bird className="h-8 w-8 text-blue-600" />
             <h1 className="text-xl md:text-2xl font-bold text-gray-800">Quiz My Lifers</h1>
-          </div>
+          </button>
+
           <div className="flex space-x-2 items-center">
             {/* NEW: Current List Badge */}
             <div className="flex items-center mr-2 sm:mr-4 text-blue-800 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 text-sm font-medium whitespace-nowrap max-w-[150px] sm:max-w-[200px] overflow-hidden text-ellipsis">
@@ -709,20 +716,6 @@ export default function App() {
               <span className="truncate">{currentListName}</span>
             </div>
 
-            <button
-              onClick={() => {
-                setFeedback(null);
-                setAppState('manage');
-              }}
-              disabled={appState === 'manage'}
-              className={`p-2 rounded-md flex items-center font-semibold transition-colors ${
-                appState === 'manage' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-200'
-              }`}
-              title="Manage List"
-            >
-              <List className="h-5 w-5 sm:mr-1" />
-              <span className="hidden sm:inline">Manage List</span>
-            </button>
             <button
               onClick={startPhotoQuiz}
               disabled={appState === 'photoQuiz' || birds.length < 2}
@@ -732,7 +725,7 @@ export default function App() {
               title="Start Photo Quiz (All)"
             >
               <Brain className="h-5 w-5 sm:mr-1" />
-              <span className="hidden sm:inline">Photo Quiz</span>
+              <span className="hidden sm:inline">Quiz me now!</span>
             </button>
           </div>
         </div>
