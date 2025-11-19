@@ -230,8 +230,9 @@ export default function App() {
     const correctBird = birds[Math.floor(Math.random() * birds.length)];
     const correctName = correctBird.preferred_common_name || correctBird.name;
     const correctLastName = getLastName(correctName);
+    const scientificName = correctBird.name;
     
-    // Clean common name (remove parens) for better search results
+    // Prepare common name for fallback search
     let commonName = correctBird.preferred_common_name;
     if (commonName && commonName.includes('(')) {
       commonName = commonName.split('(')[0].trim();
@@ -265,52 +266,66 @@ export default function App() {
       bird: {
         name: correctName,
         url: correctBird.default_photo?.medium_url,
-        scientificName: correctBird.name 
+        scientificName: scientificName,
+        commonName: commonName
       },
       options: finalOptions
     });
 
-    // --- MULTI-SOURCE AUDIO ENGINE (Frontend Only) ---
+    // --- ROBUST MULTI-SOURCE AUDIO ENGINE (AllOrigins + JSON Parsing) ---
     if (type === 'sound') {
       setIsAudioLoading(true);
       
+      // Helper: Query Xeno-Canto using AllOrigins (JSON Wrapper)
       const tryXenoWithQuery = async (query: string) => {
          try {
-            const proxyUrl = "https://corsproxy.io/?";
+            // We use 'get' instead of 'raw' to wrap the response in JSON
+            // This bypasses more strict CORS filters
+            const proxyUrl = "https://api.allorigins.win/get?url=";
             const xenoUrl = `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(query)}`;
+            
             const res = await fetch(proxyUrl + encodeURIComponent(xenoUrl));
-            const data = await res.json();
+            const wrapper = await res.json();
+            
+            if (!wrapper.contents) return null;
+            
+            // Parse the inner JSON string from Xeno-Canto
+            const data = JSON.parse(wrapper.contents);
             
             let recs = data.recordings || [];
-            // Relaxed Quality Filter: A, B, C, or no rating
-            let best = recs.filter((r: any) => ['A', 'B', 'C'].includes(r.q));
-            if (best.length === 0) best = recs;
+            
+            // Sort by Quality: A > B > C > D > E
+            recs.sort((a: any, b: any) => {
+                const qA = a.q || 'E';
+                const qB = b.q || 'E';
+                return qA.localeCompare(qB);
+            });
 
-            if (best.length > 0) {
-               let fileUrl = best[0].file;
-               if (fileUrl.startsWith('http://')) fileUrl = fileUrl.replace('http://', 'https://');
-               return fileUrl;
+            if (recs.length > 0) {
+               // Use the best quality recording found
+               return recs[0].file;
             }
          } catch (e) {
+            console.warn("Xeno fetch error for " + query, e);
             return null;
          }
+         return null;
       };
 
-      // STRATEGY: 1. Scientific -> 2. Common Name -> 3. Wikimedia
+      // Execution Strategy
       const findAudio = async () => {
         // 1. Try Scientific Name
-        let url = await tryXenoWithQuery(correctBird.name);
+        let url = await tryXenoWithQuery(scientificName);
         
-        // 2. If failed, Try Common Name (Fuzzy Match)
+        // 2. If failed, Try Common Name
         if (!url && commonName) {
-           // console.log("Trying common name: " + commonName);
            url = await tryXenoWithQuery(commonName);
         }
 
-        // 3. If failed, Try Wikimedia
+        // 3. If failed, Try Wikimedia (Direct, no proxy needed)
         if (!url) {
            try {
-            const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(correctBird.name + " audio")}&srnamespace=6&format=json&origin=*`;
+            const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(scientificName + " audio")}&srnamespace=6&format=json&origin=*`;
             const res = await fetch(wikiUrl);
             const data = await res.json();
             if (data.query && data.query.search && data.query.search.length > 0) {
@@ -327,7 +342,11 @@ export default function App() {
            } catch (e) { console.warn("Wiki failed"); }
         }
         
-        setAudioUrl(url);
+        if (url) {
+            // Force HTTPS for the browser
+            if (url.startsWith('http://')) url = url.replace('http://', 'https://');
+            setAudioUrl(url);
+        }
         setIsAudioLoading(false);
       };
 
