@@ -15,7 +15,6 @@ export default function App() {
     }
   });
 
-  // Track the name of the currently active list
   const [currentListName, setCurrentListName] = useState<string>(() => {
     return localStorage.getItem('birdQuizCurrentListName') || 'My List';
   });
@@ -23,7 +22,6 @@ export default function App() {
   const [appState, setAppState] = useState('manage'); // 'manage', 'photoQuiz', 'soundQuiz'
   const [error, setError] = useState<string | null>(null);
 
-  // --- Saved Locations State ---
   const [savedLocations, setSavedLocations] = useState<{ name: string; birds: any[]; highScore: number }[]>(() => {
     try {
       const saved = localStorage.getItem("birdQuizLocations");
@@ -37,49 +35,31 @@ export default function App() {
     return [];
   });
 
-  // --- Search State ---
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 });
   const [isAdding, setIsAdding] = useState<number | null>(null);
 
-  // --- Quiz State ---
   const [quizQuestion, setQuizQuestion] = useState<any>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [currentStreak, setCurrentStreak] = useState(0); // Streak Counter
+  const [currentStreak, setCurrentStreak] = useState(0);
   
-  // --- Sound Quiz Specific State ---
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   
-  // --- Random Bird Widget State ---
   const [randomBird, setRandomBird] = useState<any>(null);
 
   // --- EFFECTS ---
+  useEffect(() => { localStorage.setItem('birdQuizList', JSON.stringify(birds)); }, [birds]);
+  useEffect(() => { localStorage.setItem("birdQuizLocations", JSON.stringify(savedLocations)); }, [savedLocations]);
+  useEffect(() => { localStorage.setItem('birdQuizCurrentListName', currentListName); }, [currentListName]);
 
-  // 1. Save 'birds' list changes
-  useEffect(() => {
-    localStorage.setItem('birdQuizList', JSON.stringify(birds));
-  }, [birds]);
-
-  // 2. Save 'savedLocations' changes
-  useEffect(() => {
-    localStorage.setItem("birdQuizLocations", JSON.stringify(savedLocations));
-  }, [savedLocations]);
-
-  // 3. Save 'currentListName' changes
-  useEffect(() => {
-    localStorage.setItem('birdQuizCurrentListName', currentListName);
-  }, [currentListName]);
-
-  // 4. Fetch Random Bird (Strictly Birds)
   useEffect(() => {
     const fetchRandomBird = async () => {
       try {
-        // taxon_id=3 is strictly Class Aves (Birds)
         const randomPage = Math.floor(Math.random() * 1000) + 1;
         const response = await fetch(
           `https://api.inaturalist.org/v1/taxa?taxon_id=3&rank=species&per_page=1&page=${randomPage}&photos=true&order_by=observations_count`
@@ -113,7 +93,6 @@ export default function App() {
   };
 
   // --- API & LIST FUNCTIONS ---
-  
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const birdNames = searchQuery.split('\n').filter(name => name.trim() !== '');
@@ -127,7 +106,6 @@ export default function App() {
     const fetchBird = async (name: string, retryCount = 0): Promise<any> => {
       try {
         const response = await fetch(`https://api.inaturalist.org/v1/taxa/autocomplete?q=${encodeURIComponent(name.trim())}&taxon_id=3`);
-        
         if (!response.ok) {
            if (retryCount < 3) {
              await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
@@ -135,28 +113,20 @@ export default function App() {
            }
            throw new Error(`API failed for ${name}`);
         }
-
         const data = await response.json();
         const topHit = data.results.find(
-          (r: any) => r.rank === 'species' && 
-          r.default_photo &&
-          (r.name.toLowerCase() === name.trim().toLowerCase() || 
-           r.preferred_common_name?.toLowerCase() === name.trim().toLowerCase())
+          (r: any) => r.rank === 'species' && r.default_photo &&
+          (r.name.toLowerCase() === name.trim().toLowerCase() || r.preferred_common_name?.toLowerCase() === name.trim().toLowerCase())
         );
         return topHit || data.results.find((r: any) => r.rank === 'species' && r.default_photo);
-      } catch (err) {
-        console.error(`Failed to search for ${name}:`, err);
-        return null;
-      }
+      } catch (err) { return null; }
     };
 
     const BATCH_SIZE = 3;
-    
     for (let i = 0; i < birdNames.length; i += BATCH_SIZE) {
       const batch = birdNames.slice(i, i + BATCH_SIZE);
       const batchPromises = batch.map(name => fetchBird(name));
       const batchResults = await Promise.allSettled(batchPromises);
-      
       const successfulBatch = batchResults
         .filter((res): res is PromiseFulfilledResult<any> => res.status === 'fulfilled')
         .filter(res => res.value)
@@ -166,43 +136,39 @@ export default function App() {
       setSearchProgress(prev => ({ ...prev, current: Math.min(i + BATCH_SIZE, birdNames.length) }));
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
-
     setIsSearching(false);
   };
 
   const handleAddBird = (iNatResult: any) => {
-    setError(null);
     if (birds.some((b) => b.id === iNatResult.id)) {
       setError(`${iNatResult.preferred_common_name || iNatResult.name} is already in your list.`);
       return;
     }
-    setBirds(prevBirds => {
-      const newList = [...prevBirds, iNatResult];
+    setBirds(prev => {
+      const newList = [...prev, iNatResult];
       newList.sort((a, b) => (a.preferred_common_name || a.name).localeCompare(b.preferred_common_name || b.name));
       return newList;
     });
-    setSearchResults(prevResults => prevResults.filter(r => r.id !== iNatResult.id));
+    setSearchResults(prev => prev.filter(r => r.id !== iNatResult.id));
+    setError(null);
   };
 
   const handleAddAllResults = () => {
     const newBirds = searchResults.filter(result => !birds.some(b => b.id === result.id));
-
     if (newBirds.length === 0) {
       setError("All birds in search results are already in your list.");
       return;
     }
-
     setBirds(prev => {
       const updated = [...prev, ...newBirds];
       updated.sort((a, b) => (a.preferred_common_name || a.name).localeCompare(b.preferred_common_name || b.name));
       return updated;
     });
-
     setSearchResults([]);
   };
 
   const handleDeleteBird = (birdId: any) => {
-    setBirds(prevBirds => prevBirds.filter(b => b.id !== birdId));
+    setBirds(prev => prev.filter(b => b.id !== birdId));
   };
 
   const handleRemoveSearchResult = (id: number) => {
@@ -218,23 +184,13 @@ export default function App() {
     }
   };
 
-  // --- LOCATION MANAGER FUNCTIONS ---
-
   const handleSaveList = (locationName: string) => {
     const trimmedName = locationName.trim();
-    if (!trimmedName) {
-      setError("Location name cannot be empty.");
-      return;
-    }
-    if (birds.length === 0) {
-      setError("Cannot save an empty list. Please add birds first.");
-      return;
-    }
+    if (!trimmedName || birds.length === 0) return;
     if (savedLocations.some(loc => loc.name.toLowerCase() === trimmedName.toLowerCase())) {
       setError(`A location named "${trimmedName}" already exists.`);
       return;
     }
-
     const newLocation = { name: trimmedName, birds: [...birds], highScore: currentStreak };
     setSavedLocations(prev => [...prev, newLocation].sort((a, b) => a.name.localeCompare(b.name)));
     setBirds([]);
@@ -276,12 +232,10 @@ export default function App() {
     const correctLastName = getLastName(correctName);
 
     const otherBirds = birds.filter(b => b.id !== correctBird.id);
-
     const smartMatches = otherBirds.filter(b => {
       const name = b.preferred_common_name || b.name;
       return getLastName(name) === correctLastName;
     });
-
     const randomMatches = otherBirds.filter(b => {
       const name = b.preferred_common_name || b.name;
       return getLastName(name) !== correctLastName;
@@ -289,17 +243,12 @@ export default function App() {
     
     const shuffledSmart = shuffleArray(smartMatches);
     const shuffledRandom = shuffleArray(randomMatches);
-    
     const wrongAnswers = [];
     const numOptions = Math.min(3, otherBirds.length);
-
-    const smartToAdd = shuffledSmart.slice(0, numOptions);
-    wrongAnswers.push(...smartToAdd);
-
+    wrongAnswers.push(...shuffledSmart.slice(0, numOptions));
     const randomNeeded = numOptions - wrongAnswers.length;
     if (randomNeeded > 0) {
-      const randomToAdd = shuffledRandom.slice(0, randomNeeded);
-      wrongAnswers.push(...randomToAdd);
+      wrongAnswers.push(...shuffledRandom.slice(0, randomNeeded));
     }
     
     const options = wrongAnswers.map(b => b.preferred_common_name || b.name);
@@ -309,44 +258,78 @@ export default function App() {
     setQuizQuestion({
       bird: {
         name: correctName,
-        url: correctBird.default_photo?.medium_url
+        url: correctBird.default_photo?.medium_url,
+        scientificName: correctBird.name 
       },
       options: finalOptions
     });
 
-    // --- FRONTEND PROXY AUDIO LOGIC (SWITCHED TO ALLORIGINS) ---
+    // --- MULTI-SOURCE AUDIO ENGINE (Frontend Only) ---
     if (type === 'sound') {
       setIsAudioLoading(true);
+      const scientificName = correctBird.name; 
       
-      // Use AllOrigins to bypass security blocks
-      const proxyUrl = "https://api.allorigins.win/raw?url=";
-      // Query Xeno-Canto by Scientific Name (more accurate) or Common Name
-      const xenoUrl = `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(correctBird.name)}`;
-      
-      fetch(proxyUrl + encodeURIComponent(xenoUrl))
-        .then(res => res.json())
-        .then(data => {
-           let recs = data.recordings || [];
-           
-           // Filter for A/B/C quality to filter out terrible ones, but keep enough to be useful
-           // 'A' = High, 'B' = Good, 'C' = Average
-           let best = recs.filter((r: any) => ['A', 'B', 'C'].includes(r.q));
-           
-           if (best.length === 0) best = recs; // Fallback to anything if no quality ratings
+      // STRATEGY 1: Try Xeno-Canto via AllOrigins
+      const tryXenoCanto = async () => {
+        try {
+          const proxyUrl = "https://api.allorigins.win/raw?url=";
+          const xenoUrl = `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(scientificName)}`;
+          const res = await fetch(proxyUrl + encodeURIComponent(xenoUrl));
+          const data = await res.json();
+          
+          let recs = data.recordings || [];
+          let best = recs.filter((r: any) => ['A', 'B', 'C'].includes(r.q));
+          if (best.length === 0) best = recs;
 
-           if (best.length > 0) {
-             // FORCE HTTPS
+          if (best.length > 0) {
              let fileUrl = best[0].file;
-             if (fileUrl.startsWith('http://')) {
-               fileUrl = fileUrl.replace('http://', 'https://');
+             if (fileUrl.startsWith('http://')) fileUrl = fileUrl.replace('http://', 'https://');
+             return fileUrl;
+          }
+        } catch (err) {
+          console.warn("Xeno-Canto fetch failed, trying backup...");
+        }
+        return null;
+      };
+
+      // STRATEGY 2: Backup - Wikimedia Commons
+      const tryWikimedia = async () => {
+        try {
+          const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(scientificName + " audio")}&srnamespace=6&format=json&origin=*`;
+          const res = await fetch(wikiUrl);
+          const data = await res.json();
+          
+          if (data.query && data.query.search && data.query.search.length > 0) {
+             const filename = data.query.search[0].title;
+             const fileInfoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(filename)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
+             const infoRes = await fetch(fileInfoUrl);
+             const infoData = await infoRes.json();
+             const pages = infoData.query.pages;
+             const pageId = Object.keys(pages)[0];
+             if (pages[pageId].imageinfo) {
+               return pages[pageId].imageinfo[0].url;
              }
-             setAudioUrl(fileUrl);
-           } else {
-             // No recordings found
-           }
-        })
-        .catch(err => console.error("Error fetching sound:", err))
-        .finally(() => setIsAudioLoading(false));
+          }
+        } catch (err) {
+          console.warn("Wikimedia fetch failed");
+        }
+        return null;
+      };
+
+      // Execute Strategy
+      tryXenoCanto().then(url => {
+        if (url) {
+          setAudioUrl(url);
+          setIsAudioLoading(false);
+        } else {
+          tryWikimedia().then(wikiUrl => {
+            if (wikiUrl) {
+              setAudioUrl(wikiUrl);
+            } 
+            setIsAudioLoading(false);
+          });
+        }
+      });
     }
   }, [birds]);
 
@@ -389,8 +372,7 @@ export default function App() {
     }
   };
 
-  // --- RENDER FUNCTIONS ---
-
+  // --- RENDERERS ---
   const renderLoading = (text = "Loading...") => (
     <div className="flex flex-col items-center justify-center h-full text-gray-500 py-8">
       <Loader2 className="h-12 w-12 animate-spin" />
@@ -407,7 +389,6 @@ export default function App() {
         <div className="w-full md:w-2/3">
                     
           <form onSubmit={handleSearch} className="mb-6 p-4 bg-gray-50 rounded-lg shadow-md">
-            {/* PRESERVED CUSTOM TEXT: */}
             <p className="text-sm text-gray-600 mb-3"><span className="font-bold text-blue-600">Quiz My Lifers</span> lets you create photo lists of birds, so you can take quizzes and get better at identifying them. Type or paste (long) lists of bird names, add them to your list and take the quiz as many times as you want. <span className="italic">Bonus feature: save your list as a location.</span></p>
             <div className="flex flex-col space-y-3">
               <textarea
@@ -438,7 +419,6 @@ export default function App() {
                  </div>
                  <span>{searchProgress.current} / {searchProgress.total} birds checked</span>
               </div>
-              {/* The Blue Bar */}
               <div className="w-full bg-blue-200 rounded-full h-2.5">
                  <div 
                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
@@ -450,7 +430,6 @@ export default function App() {
 
           {searchResults.length > 0 && (
             <div className="mb-6">
-              {/* ADD ALL BUTTON */}
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xl font-semibold">Search Results ({searchResults.length})</h3>
                 <button 
@@ -695,6 +674,7 @@ export default function App() {
         
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           
+          {/* LEFT: MEDIA (Image or Sound Placeholder) */}
           <div className="w-full lg:w-3/5 h-[400px] lg:h-[600px] bg-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col items-center justify-center relative">
             
             {type === 'photo' ? (
@@ -727,6 +707,7 @@ export default function App() {
             )}
           </div>
           
+          {/* RIGHT: OPTIONS & FEEDBACK */}
           <div className="w-full lg:w-2/5 flex flex-col space-y-4">
             <div className="flex justify-between mb-2 px-2">
                <div className="flex items-center text-orange-500 font-bold text-lg" key={currentStreak}>
