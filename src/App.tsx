@@ -225,7 +225,8 @@ export default function App() {
     const correctBird = birds[Math.floor(Math.random() * birds.length)];
     const correctName = correctBird.preferred_common_name || correctBird.name;
     const correctLastName = getLastName(correctName);
-    const scientificName = correctBird.name;
+    // Note: Storing scientific name in question object for the Xeno link
+    const scientificName = correctBird.name; 
 
     const otherBirds = birds.filter(b => b.id !== correctBird.id);
     const smartMatches = otherBirds.filter(b => {
@@ -591,7 +592,6 @@ export default function App() {
     const record = currentLoc ? currentLoc.highScore : 0;
     
     // Generate Xeno-Canto Link
-    // Note: We use the scientific name for the most accurate link
     const searchQuery = bird.scientificName || bird.name;
     const xenoCantoLink = `https://xeno-canto.org/explore?query=${encodeURIComponent(searchQuery)}`;
 
@@ -642,7 +642,7 @@ export default function App() {
                   buttonClass += "bg-white hover:bg-blue-50 text-gray-800 border-gray-200 hover:border-blue-500 cursor-pointer";
                 }
                 return (
-                  <button key={option} onClick={() => handleAnswerSelect(option)} disabled={!!feedback} className={buttonClass}>
+                  <button key={option} onClick={() => handlePhotoAnswerSelect(option)} disabled={!!feedback} className={buttonClass}>
                     {option}
                   </button>
                 );
@@ -664,7 +664,7 @@ export default function App() {
                 )}
                 <p className="text-center text-gray-600 mb-4">It was a <span className="font-bold">{bird.name}</span></p>
                 
-                {/* LISTEN BUTTON: Opens Xeno-Canto in new tab */}
+                {/* NEW: Listen on Xeno-Canto Button */}
                 <a 
                   href={xenoCantoLink}
                   target="_blank"
@@ -676,7 +676,7 @@ export default function App() {
                 </a>
 
                 <button
-                  onClick={startPhotoQuiz}
+                  onClick={generatePhotoQuizQuestion}
                   className="w-full p-4 bg-blue-600 text-white rounded-lg font-bold text-xl hover:bg-blue-700 transition-colors shadow-lg"
                 >
                   Next Question
