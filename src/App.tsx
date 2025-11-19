@@ -230,6 +230,10 @@ export default function App() {
     const correctBird = birds[Math.floor(Math.random() * birds.length)];
     const correctName = correctBird.preferred_common_name || correctBird.name;
     const correctLastName = getLastName(correctName);
+    const scientificName = correctBird.name;
+    
+    // Use preferred common name if available, else fall back to scientific (stripped of parentheses if needed)
+    const commonName = correctBird.preferred_common_name || scientificName; 
 
     const otherBirds = birds.filter(b => b.id !== correctBird.id);
     const smartMatches = otherBirds.filter(b => {
@@ -259,77 +263,80 @@ export default function App() {
       bird: {
         name: correctName,
         url: correctBird.default_photo?.medium_url,
-        scientificName: correctBird.name 
+        scientificName: scientificName,
+        commonName: commonName
       },
       options: finalOptions
     });
 
-    // --- MULTI-SOURCE AUDIO ENGINE (Frontend Only) ---
+    // --- MULTI-SOURCE AUDIO ENGINE ---
     if (type === 'sound') {
       setIsAudioLoading(true);
-      const scientificName = correctBird.name; 
       
-      // STRATEGY 1: Try Xeno-Canto via AllOrigins
-      const tryXenoCanto = async () => {
-        try {
-          const proxyUrl = "https://api.allorigins.win/raw?url=";
-          const xenoUrl = `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(scientificName)}`;
-          const res = await fetch(proxyUrl + encodeURIComponent(xenoUrl));
-          const data = await res.json();
-          
-          let recs = data.recordings || [];
-          let best = recs.filter((r: any) => ['A', 'B', 'C'].includes(r.q));
-          if (best.length === 0) best = recs;
+      // Helper to process Xeno-Canto results
+      const processXenoData = (data: any) => {
+         let recs = data.recordings || [];
+         // Loosen filter: Allow A, B, C quality to get more hits
+         let best = recs.filter((r: any) => ['A', 'B', 'C'].includes(r.q));
+         if (best.length === 0) best = recs;
 
-          if (best.length > 0) {
-             let fileUrl = best[0].file;
-             if (fileUrl.startsWith('http://')) fileUrl = fileUrl.replace('http://', 'https://');
-             return fileUrl;
-          }
-        } catch (err) {
-          console.warn("Xeno-Canto fetch failed, trying backup...");
-        }
-        return null;
+         if (best.length > 0) {
+           let fileUrl = best[0].file;
+           if (fileUrl.startsWith('http://')) fileUrl = fileUrl.replace('http://', 'https://');
+           return fileUrl;
+         }
+         return null;
       };
 
-      // STRATEGY 2: Backup - Wikimedia Commons
-      const tryWikimedia = async () => {
-        try {
-          const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(scientificName + " audio")}&srnamespace=6&format=json&origin=*`;
-          const res = await fetch(wikiUrl);
-          const data = await res.json();
-          
-          if (data.query && data.query.search && data.query.search.length > 0) {
-             const filename = data.query.search[0].title;
-             const fileInfoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(filename)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
-             const infoRes = await fetch(fileInfoUrl);
-             const infoData = await infoRes.json();
-             const pages = infoData.query.pages;
-             const pageId = Object.keys(pages)[0];
-             if (pages[pageId].imageinfo) {
-               return pages[pageId].imageinfo[0].url;
-             }
-          }
-        } catch (err) {
-          console.warn("Wikimedia fetch failed");
-        }
-        return null;
+      const tryXenoWithQuery = async (query: string) => {
+         try {
+            const proxyUrl = "https://corsproxy.io/?";
+            const xenoUrl = `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(query)}`;
+            const res = await fetch(proxyUrl + encodeURIComponent(xenoUrl));
+            const data = await res.json();
+            return processXenoData(data);
+         } catch (e) {
+            return null;
+         }
       };
 
-      // Execute Strategy
-      tryXenoCanto().then(url => {
-        if (url) {
-          setAudioUrl(url);
-          setIsAudioLoading(false);
-        } else {
-          tryWikimedia().then(wikiUrl => {
-            if (wikiUrl) {
-              setAudioUrl(wikiUrl);
-            } 
-            setIsAudioLoading(false);
-          });
+      // STRATEGY: 1. Scientific -> 2. Common Name -> 3. Wikimedia Backup
+      const findAudio = async () => {
+        // 1. Try Scientific Name (Most Precise)
+        let url = await tryXenoWithQuery(scientificName);
+        
+        // 2. If failed, Try Common Name (Fuzzy Match)
+        if (!url && commonName) {
+           console.log(`Scientific failed for ${scientificName}, trying common: ${commonName}`);
+           url = await tryXenoWithQuery(commonName);
         }
-      });
+
+        // 3. If failed, Try Wikimedia
+        if (!url) {
+           console.log("Xeno failed, trying Wikimedia...");
+           try {
+            const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(scientificName + " audio")}&srnamespace=6&format=json&origin=*`;
+            const res = await fetch(wikiUrl);
+            const data = await res.json();
+            if (data.query && data.query.search && data.query.search.length > 0) {
+                const filename = data.query.search[0].title;
+                const fileInfoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(filename)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
+                const infoRes = await fetch(fileInfoUrl);
+                const infoData = await infoRes.json();
+                const pages = infoData.query.pages;
+                const pageId = Object.keys(pages)[0];
+                if (pages[pageId].imageinfo) {
+                  url = pages[pageId].imageinfo[0].url;
+                }
+            }
+           } catch (e) { console.warn("Wiki failed"); }
+        }
+        
+        setAudioUrl(url);
+        setIsAudioLoading(false);
+      };
+
+      findAudio();
     }
   }, [birds]);
 
@@ -389,6 +396,7 @@ export default function App() {
         <div className="w-full md:w-2/3">
                     
           <form onSubmit={handleSearch} className="mb-6 p-4 bg-gray-50 rounded-lg shadow-md">
+            {/* PRESERVED CUSTOM TEXT: */}
             <p className="text-sm text-gray-600 mb-3"><span className="font-bold text-blue-600">Quiz My Lifers</span> lets you create photo lists of birds, so you can take quizzes and get better at identifying them. Type or paste (long) lists of bird names, add them to your list and take the quiz as many times as you want. <span className="italic">Bonus feature: save your list as a location.</span></p>
             <div className="flex flex-col space-y-3">
               <textarea
@@ -419,6 +427,7 @@ export default function App() {
                  </div>
                  <span>{searchProgress.current} / {searchProgress.total} birds checked</span>
               </div>
+              {/* The Blue Bar */}
               <div className="w-full bg-blue-200 rounded-full h-2.5">
                  <div 
                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
@@ -430,6 +439,7 @@ export default function App() {
 
           {searchResults.length > 0 && (
             <div className="mb-6">
+              {/* ADD ALL BUTTON */}
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xl font-semibold">Search Results ({searchResults.length})</h3>
                 <button 
