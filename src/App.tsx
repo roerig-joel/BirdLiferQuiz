@@ -167,6 +167,28 @@ export default function App() {
     setSearchResults(prevResults => prevResults.filter(r => r.id !== iNatResult.id));
   };
 
+  // NEW: Function to add ALL search results at once
+  const handleAddAllResults = () => {
+    // 1. Identify birds that aren't already in the list
+    const newBirds = searchResults.filter(result => !birds.some(b => b.id === result.id));
+
+    if (newBirds.length === 0) {
+      setError("All birds in search results are already in your list.");
+      return;
+    }
+
+    // 2. Add them to the state
+    setBirds(prev => {
+      const updated = [...prev, ...newBirds];
+      updated.sort((a, b) => (a.preferred_common_name || a.name).localeCompare(b.preferred_common_name || b.name));
+      return updated;
+    });
+
+    // 3. Clear search results
+    setSearchResults([]);
+    setError(`Successfully added ${newBirds.length} birds to your list.`);
+  };
+
   const handleDeleteBird = (birdId: any) => {
     setBirds(prevBirds => prevBirds.filter(b => b.id !== birdId));
   };
@@ -358,8 +380,19 @@ export default function App() {
 
           {searchResults.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-xl font-semibold mb-3">Search Results ({searchResults.length})</h3>
-              <p className="text-sm text-gray-600 mb-3">Click '+' to add, or 'Trash' to remove incorrect matches.</p>
+              {/* NEW Header Row with ADD ALL button */}
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-xl font-semibold">Search Results ({searchResults.length})</h3>
+                <button 
+                  onClick={handleAddAllResults}
+                  className="flex items-center px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-semibold shadow-sm"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add All ({searchResults.length})
+                </button>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-3">Click '+' to add individual birds, or 'Trash' to remove incorrect matches.</p>
               <div className="space-y-3">
                 {searchResults.map((result) => (
                   <div key={result.id} className="bg-white p-3 rounded-lg shadow-md flex items-center space-x-3">
@@ -695,11 +728,11 @@ export default function App() {
           role="alert"
         >
           <p className="font-bold">
-            {error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") || error.includes("cleared") ? 'Status' : 'Error'}
+            {error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") || error.includes("cleared") || error.includes("Successfully") ? 'Status' : 'Error'}
           </p>
           <p>{error}</p>
           <button onClick={() => setError(null)} className={`mt-2 text-sm font-semibold ${
-            error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") || error.includes("cleared") ? 'text-green-600' : 'text-red-600'
+            error.includes("saved successfully") || error.includes("loaded") || error.includes("deleted") || error.includes("cleared") || error.includes("Successfully") ? 'text-green-600' : 'text-red-600'
           }`}>
             Dismiss
           </button>
