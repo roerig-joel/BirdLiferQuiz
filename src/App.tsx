@@ -167,9 +167,7 @@ export default function App() {
     setSearchResults(prevResults => prevResults.filter(r => r.id !== iNatResult.id));
   };
 
-  // NEW: Function to add ALL search results at once
   const handleAddAllResults = () => {
-    // 1. Identify birds that aren't already in the list
     const newBirds = searchResults.filter(result => !birds.some(b => b.id === result.id));
 
     if (newBirds.length === 0) {
@@ -177,14 +175,12 @@ export default function App() {
       return;
     }
 
-    // 2. Add them to the state
     setBirds(prev => {
       const updated = [...prev, ...newBirds];
       updated.sort((a, b) => (a.preferred_common_name || a.name).localeCompare(b.preferred_common_name || b.name));
       return updated;
     });
 
-    // 3. Clear search results
     setSearchResults([]);
     setError(`Successfully added ${newBirds.length} birds to your list.`);
   };
@@ -380,7 +376,7 @@ export default function App() {
 
           {searchResults.length > 0 && (
             <div className="mb-6">
-              {/* NEW Header Row with ADD ALL button */}
+              {/* ADD ALL BUTTON */}
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xl font-semibold">Search Results ({searchResults.length})</h3>
                 <button 
@@ -391,8 +387,8 @@ export default function App() {
                   Add All ({searchResults.length})
                 </button>
               </div>
-              
-              <p className="text-sm text-gray-600 mb-3">Click '+' to add individual birds, or 'Trash' to remove incorrect matches.</p>
+
+              <p className="text-sm text-gray-600 mb-3">Click '+' to add, or 'Trash' to remove incorrect matches.</p>
               <div className="space-y-3">
                 {searchResults.map((result) => (
                   <div key={result.id} className="bg-white p-3 rounded-lg shadow-md flex items-center space-x-3">
@@ -610,61 +606,75 @@ export default function App() {
     const { bird, options } = quizQuestion;
 
     return (
-      <div className="p-4 md:p-8 max-w-2xl mx-auto">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">Which bird is this?</h2>
+      <div className="p-4 md:p-8 max-w-6xl mx-auto">
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Who's this bird?</h2>
         
-        <div className="w-full h-64 md:h-96 mb-6 bg-gray-200 rounded-lg shadow-lg overflow-hidden flex items-center justify-center">
-          {bird.url ? (
-            <img
-              src={bird.url}
-              alt="Bird for identification"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-contain"
-            />
-          ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
-              <Ban className="h-16 w-16" />
-              <p className="mt-2 text-center">No image available for this bird.</p>
-            </div>
-          )}
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {options.map((option: string) => {
-            const isCorrect = option === bird.name;
-            const isSelected = option === selectedAnswer;
-            let buttonClass = "p-3 rounded-md text-left font-medium text-lg transition-all shadow-sm ";
-            
-            if (feedback) {
-              if (isCorrect) buttonClass += "bg-green-500 text-white ring-4 ring-green-300";
-              else if (isSelected) buttonClass += "bg-red-500 text-white ring-4 ring-red-300";
-              else buttonClass += "bg-gray-200 text-gray-500 opacity-60";
-            } else {
-              buttonClass += "bg-white hover:bg-blue-50 text-gray-800 border border-gray-300 hover:border-blue-500 cursor-pointer";
-            }
-            return (
-              <button key={option} onClick={() => handlePhotoAnswerSelect(option)} disabled={!!feedback} className={buttonClass}>
-                {option}
-              </button>
-            );
-          })}
-        </div>
-        
-        {feedback && (
-          <div className="mt-6 text-center">
-            {feedback === 'correct' ? (
-              <h3 className="text-2xl font-bold text-green-600">Correct!</h3>
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          {/* LEFT: IMAGE */}
+          <div className="w-full lg:w-3/5 h-[400px] lg:h-[600px] bg-gray-200 rounded-lg shadow-lg overflow-hidden flex items-center justify-center">
+            {bird.url ? (
+              <img
+                src={bird.url}
+                alt="Bird for identification"
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-contain"
+              />
             ) : (
-              <h3 className="text-2xl font-bold text-red-600">Incorrect</h3>
+                <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
+                <Ban className="h-16 w-16" />
+                <p className="mt-2 text-center">No image available for this bird.</p>
+              </div>
             )}
-            <button
-              onClick={generatePhotoQuizQuestion}
-              className="mt-4 p-3 bg-blue-600 text-white rounded-md font-semibold text-lg hover:bg-blue-700 transition-colors"
-            >
-              Next Question
-            </button>
           </div>
-        )}
+          
+          {/* RIGHT: OPTIONS & FEEDBACK */}
+          <div className="w-full lg:w-2/5 flex flex-col space-y-4">
+            <div className="grid grid-cols-1 gap-3">
+              {options.map((option: string) => {
+                const isCorrect = option === bird.name;
+                const isSelected = option === selectedAnswer;
+                let buttonClass = "p-4 rounded-md text-left font-medium text-lg transition-all shadow-sm border-2 ";
+                
+                if (feedback) {
+                  if (isCorrect) buttonClass += "bg-green-500 text-white border-green-600";
+                  else if (isSelected) buttonClass += "bg-red-500 text-white border-red-600";
+                  else buttonClass += "bg-gray-100 text-gray-400 border-gray-200 opacity-50";
+                } else {
+                  buttonClass += "bg-white hover:bg-blue-50 text-gray-800 border-gray-200 hover:border-blue-500 cursor-pointer";
+                }
+                return (
+                  <button key={option} onClick={() => handlePhotoAnswerSelect(option)} disabled={!!feedback} className={buttonClass}>
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+            
+            {/* Feedback Section - Sticks to the right column now */}
+            {feedback && (
+              <div className="mt-4 p-6 bg-white rounded-lg shadow-md border-2 border-gray-100 animate-in fade-in slide-in-from-top-4">
+                {feedback === 'correct' ? (
+                  <div className="flex items-center justify-center text-green-600 mb-2">
+                    <CheckCircle className="h-8 w-8 mr-2" />
+                    <h3 className="text-2xl font-bold">Correct!</h3>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center text-red-600 mb-2">
+                    <Ban className="h-8 w-8 mr-2" />
+                    <h3 className="text-2xl font-bold">Incorrect</h3>
+                  </div>
+                )}
+                <p className="text-center text-gray-600 mb-4">It was a <span className="font-bold">{bird.name}</span></p>
+                <button
+                  onClick={generatePhotoQuizQuestion}
+                  className="w-full p-4 bg-blue-600 text-white rounded-lg font-bold text-xl hover:bg-blue-700 transition-colors shadow-lg"
+                >
+                  Next Question
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   };
@@ -721,7 +731,8 @@ export default function App() {
             error.includes("saved successfully") || 
             error.includes("loaded") || 
             error.includes("deleted") ||
-            error.includes("cleared")
+            error.includes("cleared") ||
+            error.includes("Successfully")
               ? 'bg-green-100 border-green-500 text-green-700' 
               : 'bg-red-100 border-red-500 text-red-700'
           }`}
