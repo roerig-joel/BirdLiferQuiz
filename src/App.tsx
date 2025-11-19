@@ -103,7 +103,11 @@ export default function App() {
     setSearchResults([]);
     setError(null);
 
-    const searchPromises = birdNames.map(async (name) => {
+    // A temporary array to hold results as we find them
+    const accumulatedResults: any[] = [];
+
+    // Helper function to search for a SINGLE bird
+    const fetchBird = async (name: string) => {
       try {
         // taxon_id=3 forces search to only look for BIRDS
         const response = await fetch(`https://api.inaturalist.org/v1/taxa/autocomplete?q=${encodeURIComponent(name.trim())}&taxon_id=3`);
@@ -121,23 +125,43 @@ export default function App() {
         console.error(`Failed to search for ${name}:`, err);
         return null;
       }
-    });
+    };
 
-    try {
-      const results = await Promise.allSettled(searchPromises);
-      const successfulResults = results
+    // --- BATCHING LOGIC ---
+    // We process 5 birds at a time to avoid overwhelming the API
+    const BATCH_SIZE = 5;
+    
+    for (let i = 0; i < birdNames.length; i += BATCH_SIZE) {
+      // Get the next chunk of names
+      const batch = birdNames.slice(i, i + BATCH_SIZE);
+      
+      // Create promises for this batch only
+      const batchPromises = batch.map(name => fetchBird(name));
+      
+      // Wait for this batch to finish before moving to the next
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Process results
+      const successfulBatch = batchResults
         .filter((res): res is PromiseFulfilledResult<any> => res.status === 'fulfilled')
         .filter(res => res.value)
         .map(res => res.value);
         
-      setSearchResults(successfulResults);
-      if (successfulResults.length === 0) {
-        setError("No valid bird species found. Check your spelling or try different names.");
-      }
-    } catch (batchError) {
-      console.error("Batch search error:", batchError);
-      setError("An error occurred during the search. Please try again.");
+      // Add to our master list
+      accumulatedResults.push(...successfulBatch);
+      
+      // Optional: Update the UI progressively so the user sees birds appearing
+      setSearchResults(prev => [...prev, ...successfulBatch]);
+      
+      // Small pause between batches to be polite to the API (300ms)
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
+
+    // Final check after all batches are done
+    if (accumulatedResults.length === 0) {
+      setError("No valid bird species found. Check your spelling or try different names.");
+    }
+    
     setIsSearching(false);
   };
 
