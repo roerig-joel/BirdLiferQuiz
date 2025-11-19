@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  Bird, Plus, Trash2, Brain, Loader2, List, Search, CheckCircle, Ban, MapPin, Trophy, Flame, ExternalLink 
+  Bird, Plus, Trash2, Brain, Loader2, List, Search, CheckCircle, Ban, MapPin, Trophy, Flame, Music, Volume2 
 } from 'lucide-react';
 
 export default function App() {
@@ -19,7 +19,7 @@ export default function App() {
     return localStorage.getItem('birdQuizCurrentListName') || 'My List';
   });
   
-  const [appState, setAppState] = useState('manage'); // 'manage', 'photoQuiz'
+  const [appState, setAppState] = useState('manage'); // 'manage', 'photoQuiz', 'soundQuiz'
   const [error, setError] = useState<string | null>(null);
 
   const [savedLocations, setSavedLocations] = useState<{ name: string; birds: any[]; highScore: number }[]>(() => {
@@ -45,6 +45,10 @@ export default function App() {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [currentStreak, setCurrentStreak] = useState(0);
+  
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
   
   const [randomBird, setRandomBird] = useState<any>(null);
 
@@ -213,7 +217,8 @@ export default function App() {
   };
 
   // --- QUIZ LOGIC ---
-  const generateQuizQuestion = useCallback(() => {
+  // IMPORTANT: This function now accepts a 'type' argument to handle both photo and sound modes
+  const generateQuizQuestion = useCallback((type: 'photo' | 'sound') => {
     if (birds.length < 2) {
       setError("You need at least 2 birds to start a quiz.");
       setAppState('manage');
@@ -221,6 +226,7 @@ export default function App() {
     }
     setSelectedAnswer(null);
     setFeedback(null);
+    setAudioUrl(null);
 
     const correctBird = birds[Math.floor(Math.random() * birds.length)];
     const correctName = correctBird.preferred_common_name || correctBird.name;
@@ -266,13 +272,79 @@ export default function App() {
       },
       options: finalOptions
     });
+
+    // --- AUDIO ENGINE ---
+    if (type === 'sound') {
+      setIsAudioLoading(true);
+      
+      const tryXenoWithQuery = async (query: string) => {
+         try {
+            const proxyUrl = "https://api.allorigins.win/get?url=";
+            const xenoUrl = `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(query + ' q:A')}`;
+            
+            const res = await fetch(proxyUrl + encodeURIComponent(xenoUrl));
+            const wrapper = await res.json();
+            
+            if (!wrapper.contents) return null;
+            const data = JSON.parse(wrapper.contents);
+            
+            if (data.recordings && data.recordings.length > 0) {
+               let fileUrl = data.recordings[0].file;
+               if (fileUrl.startsWith('http://')) fileUrl = fileUrl.replace('http://', 'https://');
+               return fileUrl;
+            }
+         } catch (e) { return null; }
+         return null;
+      };
+
+      const tryWikimedia = async () => {
+        try {
+          const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(scientificName + " audio")}&srnamespace=6&format=json&origin=*`;
+          const res = await fetch(wikiUrl);
+          const data = await res.json();
+          if (data.query && data.query.search && data.query.search.length > 0) {
+             const filename = data.query.search[0].title;
+             const fileInfoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(filename)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
+             const infoRes = await fetch(fileInfoUrl);
+             const infoData = await infoRes.json();
+             const pages = infoData.query.pages;
+             const pageId = Object.keys(pages)[0];
+             if (pages[pageId].imageinfo) {
+               return pages[pageId].imageinfo[0].url;
+             }
+          }
+        } catch (e) { return null; }
+        return null;
+      };
+
+      // PARALLEL EXECUTION
+      Promise.any([
+        tryXenoWithQuery(scientificName).then(url => url ? Promise.resolve(url) : Promise.reject()),
+        (commonName && commonName !== scientificName) ? tryXenoWithQuery(commonName).then(url => url ? Promise.resolve(url) : Promise.reject()) : Promise.reject(),
+        tryWikimedia().then(url => url ? Promise.resolve(url) : Promise.reject())
+      ])
+      .then(url => {
+        setAudioUrl(url);
+      })
+      .catch(() => { })
+      .finally(() => {
+        setIsAudioLoading(false);
+      });
+    }
   }, [birds]);
 
   const startPhotoQuiz = () => {
     if (birds.length < 2) return;
     setError(null);
     setAppState('photoQuiz');
-    generateQuizQuestion();
+    generateQuizQuestion('photo');
+  };
+
+  const startSoundQuiz = () => {
+    if (birds.length < 2) return;
+    setError(null);
+    setAppState('soundQuiz');
+    generateQuizQuestion('sound');
   };
 
   const handleAnswerSelect = (optionName: string) => {
@@ -317,7 +389,6 @@ export default function App() {
         <div className="w-full md:w-2/3">
                     
           <form onSubmit={handleSearch} className="mb-6 p-4 bg-gray-50 rounded-lg shadow-md">
-            {/* PRESERVED CUSTOM TEXT: */}
             <p className="text-sm text-gray-600 mb-3"><span className="font-bold text-blue-600">Quiz My Lifers</span> lets you create photo lists of birds, so you can take quizzes and get better at identifying them. Type or paste (long) lists of bird names, add them to your list and take the quiz as many times as you want. <span className="italic">Bonus feature: save your list as a location.</span></p>
             <div className="flex flex-col space-y-3">
               <textarea
@@ -348,7 +419,6 @@ export default function App() {
                  </div>
                  <span>{searchProgress.current} / {searchProgress.total} birds checked</span>
               </div>
-              {/* The Blue Bar */}
               <div className="w-full bg-blue-200 rounded-full h-2.5">
                  <div 
                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
@@ -360,7 +430,6 @@ export default function App() {
 
           {searchResults.length > 0 && (
             <div className="mb-6">
-              {/* ADD ALL BUTTON */}
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xl font-semibold">Search Results ({searchResults.length})</h3>
                 <button 
@@ -591,40 +660,52 @@ export default function App() {
     </div>
   );
 
-  const renderPhotoQuiz = () => {
+  const renderQuizContent = (type: 'photo' | 'sound') => {
     if (!quizQuestion) return renderLoading();
     const { bird, options } = quizQuestion;
     const currentLoc = savedLocations.find(l => l.name === currentListName);
     const record = currentLoc ? currentLoc.highScore : 0;
-    
-    // Construct direct Xeno-Canto search URL
-    // We use scientific name OR common name if available
-    const searchQuery = bird.scientificName || bird.name;
-    const xenoCantoLink = `https://xeno-canto.org/explore?query=${encodeURIComponent(searchQuery)}`;
 
     return (
       <div className="p-4 md:p-8 max-w-6xl mx-auto">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Which bird is this?</h2>
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+          {type === 'photo' ? "Which bird is this?" : "Who is making this sound?"}
+        </h2>
         
         <div className="flex flex-col lg:flex-row gap-8 items-start">
-          {/* LEFT: IMAGE */}
-          <div className="w-full lg:w-3/5 h-[400px] lg:h-[600px] bg-gray-200 rounded-lg shadow-lg overflow-hidden flex items-center justify-center">
-            {bird.url ? (
-              <img
-                src={bird.url}
-                alt="Bird for identification"
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-contain"
-              />
+          
+          <div className="w-full lg:w-3/5 h-[400px] lg:h-[600px] bg-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col items-center justify-center relative">
+            
+            {type === 'photo' ? (
+               /* PHOTO MODE */
+               bird.url ? (
+                <img src={bird.url} alt="Bird" className="w-full h-full object-contain" />
+              ) : (
+                <div className="flex flex-col items-center text-gray-500"><Ban className="h-16 w-16"/><p>No image</p></div>
+              )
             ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
-                <Ban className="h-16 w-16" />
-                <p className="mt-2 text-center">No image available for this bird.</p>
-              </div>
+               /* SOUND MODE */
+               <div className="flex flex-col items-center justify-center w-full h-full bg-gray-800 text-white p-6 text-center">
+                 {/* Show Photo ONLY if answered correctly */}
+                 {feedback === 'correct' ? (
+                    <img src={bird.url} alt="Bird" className="absolute inset-0 w-full h-full object-contain bg-gray-200 animate-in fade-in duration-700" />
+                 ) : (
+                    <Music className="h-32 w-32 mb-6 text-purple-400 animate-pulse" />
+                 )}
+
+                 <div className="z-10 bg-white/90 p-4 rounded-xl shadow-xl w-full max-w-md backdrop-blur-sm text-gray-800">
+                    {isAudioLoading ? (
+                      <div className="flex items-center justify-center text-gray-600"><Loader2 className="h-6 w-6 animate-spin mr-2"/>Loading Sound...</div>
+                    ) : audioUrl ? (
+                      <audio ref={audioRef} controls autoPlay className="w-full" src={audioUrl} />
+                    ) : (
+                       <div className="text-red-500 font-semibold">Sound not available for this bird.</div>
+                    )}
+                 </div>
+               </div>
             )}
           </div>
           
-          {/* RIGHT: OPTIONS & FEEDBACK */}
           <div className="w-full lg:w-2/5 flex flex-col space-y-4">
             <div className="flex justify-between mb-2 px-2">
                <div className="flex items-center text-orange-500 font-bold text-lg" key={currentStreak}>
@@ -656,7 +737,6 @@ export default function App() {
               })}
             </div>
             
-            {/* Feedback Section - Sticks to the right column now */}
             {feedback && (
               <div className="mt-4 p-6 bg-white rounded-lg shadow-md border-2 border-gray-100 animate-in fade-in slide-in-from-top-4">
                 {feedback === 'correct' ? (
@@ -671,20 +751,8 @@ export default function App() {
                   </div>
                 )}
                 <p className="text-center text-gray-600 mb-4">It was a <span className="font-bold">{bird.name}</span></p>
-                
-                {/* NEW: Listen on Xeno-Canto Button */}
-                <a 
-                  href={xenoCantoLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center p-3 mb-3 bg-purple-100 text-purple-700 rounded-lg font-semibold hover:bg-purple-200 transition-colors"
-                >
-                  <ExternalLink className="h-5 w-5 mr-2" />
-                  Listen on Xeno-Canto 🎵
-                </a>
-
                 <button
-                  onClick={() => generateQuizQuestion('photo')}
+                  onClick={() => generateQuizQuestion(type)}
                   className="w-full p-4 bg-blue-600 text-white rounded-lg font-bold text-xl hover:bg-blue-700 transition-colors shadow-lg"
                 >
                   Next Question
@@ -697,10 +765,12 @@ export default function App() {
     );
   };
 
-  // --- Main Render ---
   const renderContent = () => {
     if (appState === 'photoQuiz') {
-      return renderPhotoQuiz();
+      return renderQuizContent('photo');
+    }
+    if (appState === 'soundQuiz') {
+      return renderQuizContent('sound');
     }
     return renderManageBirds();
   };
@@ -720,8 +790,12 @@ export default function App() {
               <span className="truncate">{currentListName}</span>
             </div>
 
-            <button onClick={startPhotoQuiz} disabled={appState === 'photoQuiz' || birds.length < 2} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-              <Brain className="h-5 w-5 sm:mr-2" /> <span className="hidden sm:inline">Quiz me now!</span>
+            <button onClick={startPhotoQuiz} disabled={appState === 'photoQuiz' || birds.length < 2} className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50">
+              <Brain className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Photo Quiz</span>
+            </button>
+
+            <button onClick={startSoundQuiz} disabled={appState === 'soundQuiz' || birds.length < 2} className="flex items-center px-3 py-2 bg-purple-600 text-white rounded-md font-semibold hover:bg-purple-700 transition-colors shadow-sm disabled:opacity-50">
+              <Volume2 className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Sound Quiz</span>
             </button>
           </div>
         </div>
