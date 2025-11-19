@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Bird, Plus, Trash2, Brain, Loader2, List, Search, CheckCircle, Ban 
+  Bird, Plus, Trash2, Brain, Loader2, List, Search, CheckCircle, Ban, MapPin 
 } from 'lucide-react';
 
 export default function App() {
@@ -13,6 +13,11 @@ export default function App() {
       console.error("Failed to parse birds from localStorage", e);
       return [];
     }
+  });
+
+  // NEW: Track the name of the currently active list
+  const [currentListName, setCurrentListName] = useState<string>(() => {
+    return localStorage.getItem('birdQuizCurrentListName') || 'My List';
   });
   
   const [appState, setAppState] = useState('manage'); // 'manage', 'photoQuiz'
@@ -56,7 +61,12 @@ export default function App() {
     localStorage.setItem("birdQuizLocations", JSON.stringify(savedLocations));
   }, [savedLocations]);
 
-  // 3. Fetch Random Bird (Strictly Birds)
+  // 3. Save 'currentListName' changes
+  useEffect(() => {
+    localStorage.setItem('birdQuizCurrentListName', currentListName);
+  }, [currentListName]);
+
+  // 4. Fetch Random Bird (Strictly Birds)
   useEffect(() => {
     const fetchRandomBird = async () => {
       try {
@@ -105,7 +115,6 @@ export default function App() {
     setError(null);
     setSearchProgress({ current: 0, total: birdNames.length });
 
-    // Helper: Search for a SINGLE bird with RETRY logic
     const fetchBird = async (name: string, retryCount = 0): Promise<any> => {
       try {
         const response = await fetch(`https://api.inaturalist.org/v1/taxa/autocomplete?q=${encodeURIComponent(name.trim())}&taxon_id=3`);
@@ -132,7 +141,6 @@ export default function App() {
       }
     };
 
-    // --- BATCHING LOGIC ---
     const BATCH_SIZE = 3;
     
     for (let i = 0; i < birdNames.length; i += BATCH_SIZE) {
@@ -197,6 +205,7 @@ export default function App() {
     if (birds.length === 0) return;
     if (window.confirm("Are you sure you want to REMOVE ALL birds from your current list? This cannot be undone.")) {
       setBirds([]);
+      setCurrentListName("My List"); // Reset name on clear
       setError("Current list cleared.");
     }
   };
@@ -222,6 +231,7 @@ export default function App() {
     setSavedLocations(prev => [...prev, newLocation].sort((a, b) => a.name.localeCompare(b.name)));
     setBirds([]);
     setSearchQuery('');
+    setCurrentListName(trimmedName); // Update active name
     setError(`List "${trimmedName}" saved successfully! Your current list is now empty.`);
   };
 
@@ -229,6 +239,7 @@ export default function App() {
     const location = savedLocations.find(loc => loc.name === locationName);
     if (location) {
       setBirds([...location.birds]);
+      setCurrentListName(locationName); // Update active name
       setAppState('manage');
       setError(`List "${locationName}" loaded. (${location.birds.length} birds)`);
     }
@@ -237,6 +248,7 @@ export default function App() {
   const handleDeleteList = (locationName: string) => {
     if (window.confirm(`Are you sure you want to delete the list for "${locationName}"?`)) {
       setSavedLocations(prev => prev.filter(loc => loc.name !== locationName));
+      if (currentListName === locationName) setCurrentListName("My List");
       setError(`List "${locationName}" deleted.`);
     }
   };
@@ -607,7 +619,7 @@ export default function App() {
 
     return (
       <div className="p-4 md:p-8 max-w-6xl mx-auto">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Which bird is this?</h2>
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Who's this bird?</h2>
         
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* LEFT: IMAGE */}
@@ -695,7 +707,13 @@ export default function App() {
             <Bird className="h-8 w-8 text-blue-600" />
             <h1 className="text-xl md:text-2xl font-bold text-gray-800">Quiz My Lifers</h1>
           </div>
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 items-center">
+            {/* NEW: Current List Badge */}
+            <div className="flex items-center mr-2 sm:mr-4 text-blue-800 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 text-sm font-medium whitespace-nowrap max-w-[150px] sm:max-w-[200px] overflow-hidden text-ellipsis">
+              <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+              <span className="truncate">{currentListName}</span>
+            </div>
+
             <button
               onClick={() => {
                 setFeedback(null);
