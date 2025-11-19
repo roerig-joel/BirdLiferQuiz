@@ -47,6 +47,7 @@ export default function App() {
   const [currentStreak, setCurrentStreak] = useState(0);
   
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioSource, setAudioSource] = useState<string | null>(null); // NEW: To track where sound came from
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   
@@ -226,16 +227,17 @@ export default function App() {
     setSelectedAnswer(null);
     setFeedback(null);
     setAudioUrl(null);
+    setAudioSource(null);
 
     const correctBird = birds[Math.floor(Math.random() * birds.length)];
     const correctName = correctBird.preferred_common_name || correctBird.name;
     const correctLastName = getLastName(correctName);
     const scientificName = correctBird.name;
     
-    // Prepare common name for fallback search
     let commonName = correctBird.preferred_common_name;
-    if (commonName && commonName.includes('(')) {
-      commonName = commonName.split('(')[0].trim();
+    if (commonName) {
+      if (commonName.includes('(')) commonName = commonName.split('(')[0];
+      commonName = commonName.replace(/-/g, ' ').trim();
     }
 
     const otherBirds = birds.filter(b => b.id !== correctBird.id);
@@ -272,81 +274,91 @@ export default function App() {
       options: finalOptions
     });
 
-    // --- ROBUST MULTI-SOURCE AUDIO ENGINE (AllOrigins + JSON Parsing) ---
+    // --- SHOTGUN AUDIO ENGINE ---
     if (type === 'sound') {
       setIsAudioLoading(true);
       
-      // Helper: Query Xeno-Canto using AllOrigins (JSON Wrapper)
-      const tryXenoWithQuery = async (query: string) => {
-         try {
-            // We use 'get' instead of 'raw' to wrap the response in JSON
-            // This bypasses more strict CORS filters
-            const proxyUrl = "https://api.allorigins.win/get?url=";
-            const xenoUrl = `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(query)}`;
-            
-            const res = await fetch(proxyUrl + encodeURIComponent(xenoUrl));
-            const wrapper = await res.json();
-            
-            if (!wrapper.contents) return null;
-            
-            // Parse the inner JSON string from Xeno-Canto
-            const data = JSON.parse(wrapper.contents);
-            
-            let recs = data.recordings || [];
-            
-            // Sort by Quality: A > B > C > D > E
-            recs.sort((a: any, b: any) => {
-                const qA = a.q || 'E';
-                const qB = b.q || 'E';
-                return qA.localeCompare(qB);
-            });
-
-            if (recs.length > 0) {
-               // Use the best quality recording found
-               return recs[0].file;
-            }
-         } catch (e) {
-            console.warn("Xeno fetch error for " + query, e);
-            return null;
-         }
-         return null;
+      // Helper to fetch from Xeno via a proxy
+      const fetchXeno = async (proxyPrefix: string, query: string) => {
+        try {
+          const xenoUrl = `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(query)}`;
+          const res = await fetch(proxyPrefix + encodeURIComponent(xenoUrl));
+          // Handle AllOrigins JSON wrapper
+          const json = await res.json();
+          const data = json.contents ? JSON.parse(json.contents) : json;
+          
+          let recs = data.recordings || [];
+          // Prefer quality A/B, fallback to anything
+          let best = recs.filter((r: any) => ['A', 'B'].includes(r.q));
+          if (best.length === 0) best = recs;
+          
+          if (best.length > 0) {
+             let fileUrl = best[0].file;
+             if (fileUrl.startsWith('http://')) fileUrl = fileUrl.replace('http://', 'https://');
+             return fileUrl;
+          }
+        } catch(e) { return null; }
+        return null;
       };
 
-      // Execution Strategy
+      // Strategy 1: Wikimedia (Fastest, Most Reliable)
+      const tryWikimedia = async () => {
+        try {
+          const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(scientificName + " audio")}&srnamespace=6&format=json&origin=*`;
+          const res = await fetch(wikiUrl);
+          const data = await res.json();
+          if (data.query && data.query.search && data.query.search.length > 0) {
+             const filename = data.query.search[0].title;
+             const fileInfoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(filename)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
+             const infoRes = await fetch(fileInfoUrl);
+             const infoData = await infoRes.json();
+             const pages = infoData.query.pages;
+             const pageId = Object.keys(pages)[0];
+             if (pages[pageId].imageinfo) return pages[pageId].imageinfo[0].url;
+          }
+        } catch (e) { return null; }
+        return null;
+      };
+
+      // The "Waterfall": Try sources in order
       const findAudio = async () => {
-        // 1. Try Scientific Name
-        let url = await tryXenoWithQuery(scientificName);
-        
-        // 2. If failed, Try Common Name
-        if (!url && commonName) {
-           url = await tryXenoWithQuery(commonName);
+        // 1. Try Wikimedia First
+        let url = await tryWikimedia();
+        if (url) {
+           setAudioUrl(url);
+           setAudioSource("Wikimedia Commons");
+           setIsAudioLoading(false);
+           return;
         }
 
-        // 3. If failed, Try Wikimedia (Direct, no proxy needed)
-        if (!url) {
-           try {
-            const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(scientificName + " audio")}&srnamespace=6&format=json&origin=*`;
-            const res = await fetch(wikiUrl);
-            const data = await res.json();
-            if (data.query && data.query.search && data.query.search.length > 0) {
-                const filename = data.query.search[0].title;
-                const fileInfoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(filename)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
-                const infoRes = await fetch(fileInfoUrl);
-                const infoData = await infoRes.json();
-                const pages = infoData.query.pages;
-                const pageId = Object.keys(pages)[0];
-                if (pages[pageId].imageinfo) {
-                  url = pages[pageId].imageinfo[0].url;
-                }
-            }
-           } catch (e) { console.warn("Wiki failed"); }
+        // 2. Try Xeno via Proxy A (CorsProxy)
+        url = await fetchXeno("https://corsproxy.io/?", scientificName);
+        if (url) {
+           setAudioUrl(url);
+           setAudioSource("Xeno-Canto");
+           setIsAudioLoading(false);
+           return;
         }
         
+        // 3. Try Xeno via Proxy B (AllOrigins)
+        url = await fetchXeno("https://api.allorigins.win/get?url=", scientificName);
         if (url) {
-            // Force HTTPS for the browser
-            if (url.startsWith('http://')) url = url.replace('http://', 'https://');
-            setAudioUrl(url);
+           setAudioUrl(url);
+           setAudioSource("Xeno-Canto");
+           setIsAudioLoading(false);
+           return;
         }
+
+        // 4. Try Xeno via Proxy C (CodeTabs)
+        url = await fetchXeno("https://api.codetabs.com/v1/proxy?quest=", scientificName);
+        if (url) {
+           setAudioUrl(url);
+           setAudioSource("Xeno-Canto");
+           setIsAudioLoading(false);
+           return;
+        }
+
+        // If all fail
         setIsAudioLoading(false);
       };
 
@@ -721,7 +733,10 @@ export default function App() {
                     {isAudioLoading ? (
                       <div className="flex items-center justify-center text-gray-600"><Loader2 className="h-6 w-6 animate-spin mr-2"/>Loading Sound...</div>
                     ) : audioUrl ? (
-                      <audio ref={audioRef} controls autoPlay className="w-full" src={audioUrl} />
+                      <div className="flex flex-col items-center">
+                        <audio ref={audioRef} controls autoPlay className="w-full" src={audioUrl} />
+                        {audioSource && <p className="text-xs text-gray-500 mt-2">Source: {audioSource}</p>}
+                      </div>
                     ) : (
                        <div className="text-red-500 font-semibold">Sound not available for this bird.</div>
                     )}
