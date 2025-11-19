@@ -29,7 +29,6 @@ export default function App() {
       const saved = localStorage.getItem("birdQuizLocations");
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Ensure older saves get a highScore property
         return parsed.map((loc: any) => ({ ...loc, highScore: loc.highScore || 0 }));
       }
     } catch (e) {
@@ -315,21 +314,25 @@ export default function App() {
       options: finalOptions
     });
 
-    // --- FRONTEND PROXY AUDIO LOGIC ---
+    // --- FRONTEND PROXY AUDIO LOGIC (SWITCHED TO ALLORIGINS) ---
     if (type === 'sound') {
       setIsAudioLoading(true);
       
-      // Use CORSProxy.io to bypass security blocks
-      const proxyUrl = "https://corsproxy.io/?";
+      // Use AllOrigins to bypass security blocks
+      const proxyUrl = "https://api.allorigins.win/raw?url=";
+      // Query Xeno-Canto by Scientific Name (more accurate) or Common Name
       const xenoUrl = `https://www.xeno-canto.org/api/2/recordings?query=${encodeURIComponent(correctBird.name)}`;
       
       fetch(proxyUrl + encodeURIComponent(xenoUrl))
         .then(res => res.json())
         .then(data => {
-           // Filter for A or B quality
            let recs = data.recordings || [];
-           let best = recs.filter((r: any) => r.q === 'A' || r.q === 'B');
-           if (best.length === 0) best = recs;
+           
+           // Filter for A/B/C quality to filter out terrible ones, but keep enough to be useful
+           // 'A' = High, 'B' = Good, 'C' = Average
+           let best = recs.filter((r: any) => ['A', 'B', 'C'].includes(r.q));
+           
+           if (best.length === 0) best = recs; // Fallback to anything if no quality ratings
 
            if (best.length > 0) {
              // FORCE HTTPS
