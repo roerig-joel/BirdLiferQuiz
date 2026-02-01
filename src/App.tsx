@@ -577,6 +577,35 @@ export default function App() {
           ))}
         </div>
       </div>
+
+      {/* SEO Content Footer */}
+      <div className="mt-12 border-t pt-8 pb-8 text-gray-600">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">Master Your Bird Identification Skills</h2>
+        <div className="prose max-w-none text-sm space-y-4">
+          <p>
+            <strong>Quiz My Lifers</strong> is the ultimate free tool for birders, nature enthusiasts, and ornithology students who want to 
+            improve their identification skills. whether you are preparing for a trip to the Kruger National Park or just want to 
+            memorize the calls of your local garden birds, this app helps you study effectively.
+          </p>
+          <p>
+            Unlike standard field guides, this tool allows you to <strong>practice actively</strong>. By importing lists directly from 
+            iNaturalist, you can generate custom photo quizzes tailored to your specific goals. 
+            Struggling with LBJs (Little Brown Jobs)? Create a custom list and quiz yourself until you get them right.
+          </p>
+          <p>
+            Features include:
+            <ul className="list-disc pl-5 mt-2 space-y-1">
+              <li><strong>Photo Quizzes:</strong> Test your visual ID skills against thousands of high-quality images.</li>
+              <li><strong>Bird Call Study:</strong> Direct links to Xeno-Canto to study songs and calls while looking at the bird.</li>
+              <li><strong>Location Lists:</strong> Save specific lists for locations like "Kirstenbosch" or "Okavango Delta."</li>
+              <li><strong>Gamification:</strong> Track your streaks and high scores to make learning addictive.</li>
+            </ul>
+          </p>
+          <p className="text-xs text-gray-400 mt-6">
+            Keywords: Birding quiz, learn bird calls, South African bird list, study nature, practice ornithology, iNaturalist quiz, bird flashcards.
+          </p>
+        </div>
+      </div>
       
       <div className="grid grid-cols-1 mt-6">
         <button
